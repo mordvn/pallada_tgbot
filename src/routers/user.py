@@ -289,6 +289,7 @@ async def process_callback(callback: CallbackQuery, state: FSMContext, notifyer:
         elif action == 'swap_week':
             data['current_week'] = 2 if data['current_week'] == 1 else 1
             current_day, max_days = await _calculate_current_day(data['schedule'], data['current_week'])
+            data['max_days'] = max_days  # Update max_days in state
             data['current_day'] = min(data['current_day'], max_days)
             logger.debug(f"Swapped to week: {data['current_week']}")
         elif action in ['prev_day', 'next_day']:
