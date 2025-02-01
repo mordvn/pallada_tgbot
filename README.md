@@ -1,4 +1,4 @@
-# SibGU Schedule Bot 🤖
+# SibSAU Schedule Bot 🤖
 
 A Telegram bot for accessing and tracking class schedules at Siberian State University of Science and Technology. Get instant access to both student group and professor schedules, with real-time updates and notifications for any changes.
 
@@ -64,7 +64,7 @@ Contributions are welcome! Here's how you can help:
 
 ## Acknowledgments 🙏
 
-- Thanks to SibGU for providing schedule data
+- Thanks to SibSAU for providing schedule data
 - All contributors who have helped improve this bot
 - The Python Telegram Bot community for their excellent documentation and support
 
@@ -77,4 +77,4 @@ If you find this bot useful, please consider:
 - Supporting through donations 💖
 
 ---
-Made with ❤️ for SibGU students and professors
+Made with ❤️ for SibSAU students and professors
