@@ -2,8 +2,10 @@
 
 A Telegram bot for accessing and tracking class schedules at Siberian State University of Science and Technology. Get instant access to both student group and professor schedules, with real-time updates and notifications for any changes.
 
-![Bot Demo](images/demo.png)
-![Schedule View](images/schedule.png)
+<div align="center">
+  <img src="images/demo.png" width="400" alt="Bot Demo" style="margin-right: 20px"/>
+  <img src="images/schedule.png" width="400" alt="Schedule View"/>
+</div>
 
 ## Features ✨
 
