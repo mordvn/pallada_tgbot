@@ -11,7 +11,7 @@ A Telegram bot for accessing and tracking class schedules at Siberian State Univ
 
 - 🔍 Quick search for both student groups and professors
 - 📅 View schedules by week and day
-- 🔄 Real-time schedule updates
+- 🔄 Real-time schedule updates˘¿
 - 🔔 Notifications for schedule changes
 - 📱 User-friendly interface
 - 🔗 Quick navigation between related schedules
