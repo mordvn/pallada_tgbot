@@ -1,5 +1,5 @@
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram.types import InlineKeyboardMarkup, WebAppInfo
+from aiogram.types import InlineKeyboardMarkup
 
 NUM_MAX_WEEKS = 2
 
@@ -56,7 +56,7 @@ def help_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     pattern = [1]  # Вертикально кнопочки
 
-    builder.button(text='Задонатить ☕️', web_app=WebAppInfo(url='https://pay.cloudtips.ru/p/190e1668'))
+    builder.button(text='Задонатить ☕️', url='https://pay.cloudtips.ru/p/190e1668')
     builder.button(text='👨‍💻 Разработчик', url='https://t.me/jahagafagshsjaavv')
     builder.button(text='📂 Код проекта', url='https://github.com/unknown81d/pallada_tgbot')
 
