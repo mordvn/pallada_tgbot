@@ -70,7 +70,7 @@ class SearchResultList:
         Search for data in the list using fuzzy string matching.
         """
         # Minimum similarity percentage (0-100) required for a match to be considered valid
-        MINIMUM_SIMILARITY_PERCENTAGE: int = 30
+        MINIMUM_SIMILARITY_PERCENTAGE: int = 50
 
         if not query or not self.results:
             return None

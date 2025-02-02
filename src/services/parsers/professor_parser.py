@@ -310,7 +310,7 @@ def _compare_lessons(old_lesson: Lesson,
     """Compare two lessons and return list of changes"""
     changes = []
     # Different fields for regular lessons and consultation lessons
-    fields_to_compare = ['time', 'name', 'groups', 'place', 'subgroup']
+    fields_to_compare = ['time', 'name', 'groups', 'place', 'subgroup', 'type']
 
     for field in fields_to_compare:
         old_value = getattr(old_lesson, field)

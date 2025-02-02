@@ -1,10 +1,10 @@
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram.types import InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup, WebAppInfo
 
-MAX_WEEKS = 2
+NUM_MAX_WEEKS = 2
 
-def build_keyboard(current_tab: str, current_week: int, current_day: int,
-                  max_days: int, schedule_type: str, subscribed: bool) -> InlineKeyboardMarkup:
+def schedule_pagination_keyboard(current_tab: str, current_week_index: int, current_day_index: int,
+                  num_max_days: int, schedule_type: str, subscribed: bool) -> InlineKeyboardMarkup:
     """
     Build keyboard markup based on schedule type and current view state.
     """
@@ -39,11 +39,25 @@ def build_keyboard(current_tab: str, current_week: int, current_day: int,
 
     # Добавляем кнопки навигации по неделям и дням только для вкладки basic
     if current_tab == 'basic':
-        builder.button(text=f'{current_week}/{MAX_WEEKS}', callback_data='swap_week')
+        builder.button(text=f'{current_week_index}/{NUM_MAX_WEEKS}', callback_data='swap_week')
         builder.button(text='<<', callback_data='prev_day')
-        builder.button(text=f'{current_day}/{max_days}', callback_data='nop')
+        builder.button(text=f'{current_day_index}/{num_max_days}', callback_data='open_today')
         builder.button(text='>>', callback_data='next_day')\
 
     builder.button(text='Отслеживать 🔔' if not subscribed else 'Отменить 🔕', callback_data='notify_me')
+
+    return builder.adjust(*pattern).as_markup()
+
+
+def help_keyboard() -> InlineKeyboardMarkup:
+    """
+    Build keyboard markup for help command.
+    """
+    builder = InlineKeyboardBuilder()
+    pattern = [1]  # Вертикально кнопочки
+
+    builder.button(text='Задонатить ☕️', web_app=WebAppInfo(url='https://pay.cloudtips.ru/p/190e1668'))
+    builder.button(text='👨‍💻 Разработчик', url='https://t.me/jahagafagshsjaavv')
+    builder.button(text='📂 Код проекта', url='https://github.com/unknown81d/pallada_tgbot')
 
     return builder.adjust(*pattern).as_markup()

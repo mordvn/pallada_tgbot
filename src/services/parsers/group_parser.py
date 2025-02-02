@@ -18,6 +18,7 @@ class Lesson:
     professor: str
     place: str
     subgroup: Optional[str] = None
+    type: Optional[str] = None
 
 @dataclass
 class DaySchedule:
@@ -119,8 +120,10 @@ async def _parse_schedule(html_content: str) -> Schedule:
 
                     subgroup_element = discipline_div.find('li', class_='bold num_pdgrp')
                     subgroup = subgroup_element.text.strip() if subgroup_element else None
+                    lesson_type_element = discipline_div.find('li')
+                    lesson_type = lesson_type_element.text.strip().split('(')[1].replace(')', '') if lesson_type_element and '(' in lesson_type_element.text else None
 
-                    lesson = Lesson(time=time, name=name, professor=professor, place=place, subgroup=subgroup)
+                    lesson = Lesson(time=time, name=name, professor=professor, place=place, subgroup=subgroup, type=lesson_type)
                     day_schedule.lessons.append(lesson)
 
                 week_schedule.days.append(day_schedule)
@@ -355,7 +358,7 @@ def _load_schedule_from_cache(cache_path: Path) -> Schedule:
 def _compare_lessons(old_lesson: Lesson, new_lesson: Lesson, day_name: str, week_number: Optional[int] = None) -> List[Change]:
     """Compare two lessons and return list of changes"""
     changes = []
-    fields_to_compare = ['time', 'name', 'professor', 'place', 'subgroup']
+    fields_to_compare = ['time', 'name', 'professor', 'place', 'subgroup', 'type']
 
     for field in fields_to_compare:
         old_value = getattr(old_lesson, field)

@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Tuple
 
 from aiogram import Router, F
@@ -16,7 +16,7 @@ from aiogram.utils.deep_linking import decode_payload, create_start_link
 from aiogram.enums import ParseMode
 from aiogram.types import LinkPreviewOptions
 from states import UserStates
-from keyboards import build_keyboard
+from keyboards import schedule_pagination_keyboard, help_keyboard
 from services.notification_processor import NotificationManager
 from services.search_results import SearchResultList
 from services.parsers import group_parser, professor_parser
@@ -24,6 +24,17 @@ from services.parsers import group_parser, professor_parser
 logger = logging.getLogger(__name__)
 
 user_router = Router()
+
+TIME_TO_EMOJI = {
+    "08:00": "1️⃣",
+    "09:40": "2️⃣",
+    "11:30": "3️⃣",
+    "13:30": "4️⃣",
+    "15:10": "5️⃣",
+    "16:50": "6️⃣",
+    "18:30": "7️⃣",
+    "20:10": "8️⃣"
+}
 
 async def _render_schedule(message: Message, user_id: int, state: FSMContext, notifyer: NotificationManager, update: bool = False) -> None:
     """
@@ -62,54 +73,90 @@ async def _render_group_schedule(message: Message, user_id: int, state: FSMConte
     current_week = data.get('current_week')
     current_day = data.get('current_day')
     schedule = data.get('schedule')
-    max_weeks = data.get('max_weeks')
+    #max_weeks = data.get('max_weeks')
     max_days = data.get('max_days')
 
     responses = []
     responses.append(f"<a href=\'{await create_start_link(bot = message.bot, payload=schedule.group_name, encode=True)}\'>{schedule.group_name}</a> {schedule.semester}")
     responses.append(f"")
 
-    if current_tab == 'basic':
+    if current_tab == 'basic' and schedule.weeks:
         week = schedule.weeks[current_week - 1]
         day = week.days[current_day - 1]
 
-        # Check if this is today
+        # Check if this is today, tomorrow, or yesterday
         current_date = datetime.now()
-        is_today = (
-            current_date.isocalendar()[1] % 2 == current_week and
-            DAYS_OF_WEEK[current_date.weekday()] == day.day_name
-        )
-        today_suffix = " (Сегодня)" if is_today else ""
+        current_weekday = current_date.weekday()
+        current_week_number = current_date.isocalendar()[1] % 2
 
-        responses.append(f"<b>Неделя {week.week_number}</b> - <b>{day.day_name}{today_suffix}:</b>")
+        is_today = (
+            current_week_number == current_week and
+            DAYS_OF_WEEK[current_weekday] == day.day_name
+        )
+        is_tomorrow = (
+            (current_week_number == current_week and
+             DAYS_OF_WEEK[(current_weekday + 1) % 7] == day.day_name) or
+            (current_week_number != current_week and
+             current_weekday == 6 and
+             DAYS_OF_WEEK[0] == day.day_name)
+        )
+        is_yesterday = (
+            (current_week_number == current_week and
+             DAYS_OF_WEEK[(current_weekday - 1) % 7] == day.day_name) or
+            (current_week_number != current_week and
+             current_weekday == 0 and
+             DAYS_OF_WEEK[6] == day.day_name)
+        )
+
+        day_suffix = ""
+        if is_today:
+            day_suffix = " (Сегодня)"
+        elif is_tomorrow:
+            day_suffix = " (Завтра)"
+        elif is_yesterday:
+            day_suffix = " (Вчера)"
+
+        responses.append(f"<b>{day.day_name}{day_suffix}:</b>")
         responses.append(f"")
 
         for lesson in day.lessons:
+            lesson_subgroup_text = f"  |  {lesson.subgroup}" if lesson.subgroup else ""
+            lesson_type_text = f"  |  {lesson.type}" if lesson.type else ""
+
             lesson_text = [
-                f"<b>{lesson.time}</b>",
-                f"{lesson.name.title()}",
+                f"{lesson.name.capitalize()}",
+                f"<b>{TIME_TO_EMOJI.get(lesson.time.split('-')[0].strip(), '')} {lesson.time}</b>{lesson_type_text}{lesson_subgroup_text}",
+                f"{lesson.place.split(' / ')[1]}",
                 f"<a href='{await create_start_link(bot = message.bot, payload=lesson.professor, encode=True)}'>{lesson.professor}</a>",
-                f"{lesson.place.split(' / ')[1]}"
             ]
-            if lesson.subgroup:
-                lesson_text.append(f"{lesson.subgroup}")
             responses.append("\n".join(lesson_text) + "\n")
 
     elif current_tab == 'session' and schedule.session:
         responses.append("<b>Расписание сессии:</b>")
         responses.append(f"")
         for day in schedule.session.days:
-            responses.append(f"<b>{day.day_name}:</b>")
+            # Get relative day label (вчера/сегодня/завтра)
+            day_suffix = ""
+            today = datetime.now().strftime("%A").lower()
+            if day.day_name.lower() == today:
+                day_suffix = " (Сегодня)"
+            elif day.day_name.lower() == (datetime.now() + timedelta(days=1)).strftime("%A").lower():
+                day_suffix = " (Завтра)"
+            elif day.day_name.lower() == (datetime.now() - timedelta(days=1)).strftime("%A").lower():
+                day_suffix = " (Вчера)"
+
+            responses.append(f"<b>{day.day_name}{day_suffix}:</b>")
             responses.append(f"")
             for lesson in day.lessons:
+                lesson_subgroup_text = f"  |  {lesson.subgroup}" if lesson.subgroup else ""
+                lesson_type_text = f"  |  {lesson.type}" if lesson.type else ""
+
                 lesson_text = [
-                    f"<b>{lesson.time}</b>",
-                    f"{lesson.name.title()}",
+                    f"{lesson.name.capitalize()}",
+                    f"<b>{lesson.time}</b>{lesson_type_text}{lesson_subgroup_text}",
+                    f"{lesson.place.split(' / ')[1]}",
                     f"<a href='{await create_start_link(bot = message.bot, payload=lesson.professor, encode=True)}'>{lesson.professor}</a>",
-                    f"{lesson.place.split(' / ')[1]}"
                 ]
-                if lesson.subgroup:
-                    lesson_text.append(f"{lesson.subgroup}")
                 responses.append("\n".join(lesson_text) + "\n")
 
 
@@ -117,13 +164,13 @@ async def _render_group_schedule(message: Message, user_id: int, state: FSMConte
     if not update:
         await message.answer(
             "\n".join(responses),
-            reply_markup=build_keyboard(current_tab, current_week, current_day, max_days, 'group', subscribed),
+            reply_markup=schedule_pagination_keyboard(current_tab, current_week, current_day, max_days, 'group', subscribed),
             parse_mode=ParseMode.HTML, link_preview_options=LinkPreviewOptions(is_disabled=True)
         )
     else:
         await message.edit_text(
             "\n".join(responses),
-            reply_markup=build_keyboard(current_tab, current_week, current_day, max_days, 'group', subscribed),
+            reply_markup=schedule_pagination_keyboard(current_tab, current_week, current_day, max_days, 'group', subscribed),
             parse_mode=ParseMode.HTML, link_preview_options=LinkPreviewOptions(is_disabled=True)
         )
 
@@ -136,99 +183,150 @@ async def _render_professor_schedule(message: Message, user_id: int, state: FSMC
     current_week = data['current_week']
     current_day = data['current_day']
     schedule = data['schedule']
-    max_weeks = data['max_weeks']
+    #max_weeks = data['max_weeks']
     max_days = data['max_days']
 
     responses = []
     responses.append(f"<a href=\'{await create_start_link(bot = message.bot, payload=schedule.person_name, encode=True)}\'>{schedule.person_name}</a> - {schedule.academic_year}")
     responses.append(f"")
 
-    if current_tab == 'basic':
+    if current_tab == 'basic' and schedule.weeks:
         week = schedule.weeks[current_week - 1]
         day = week.days[current_day - 1]
 
-        # Check if this is today
+        # Check if this is today, tomorrow, or yesterday
         current_date = datetime.now()
-        is_today = (
-            current_date.isocalendar()[1] % 2 == current_week and
-            DAYS_OF_WEEK[current_date.weekday()] == day.day_name
-        )
-        today_suffix = " (Сегодня)" if is_today else ""
+        current_weekday = current_date.weekday()
+        current_week_number = current_date.isocalendar()[1] % 2
 
-        responses.append(f"<b>{day.day_name}{today_suffix}</b> - <b>{week.week_number} Неделя</b>")
+        is_today = (
+            current_week_number == current_week and
+            DAYS_OF_WEEK[current_weekday] == day.day_name
+        )
+        is_tomorrow = (
+            (current_week_number == current_week and
+             DAYS_OF_WEEK[(current_weekday + 1) % 7] == day.day_name) or
+            (current_week_number != current_week and
+             current_weekday == 6 and
+             DAYS_OF_WEEK[0] == day.day_name)
+        )
+        is_yesterday = (
+            (current_week_number == current_week and
+             DAYS_OF_WEEK[(current_weekday - 1) % 7] == day.day_name) or
+            (current_week_number != current_week and
+             current_weekday == 0 and
+             DAYS_OF_WEEK[6] == day.day_name)
+        )
+
+        day_suffix = ""
+        if is_today:
+            day_suffix = " (Сегодня)"
+        elif is_tomorrow:
+            day_suffix = " (Завтра)"
+        elif is_yesterday:
+            day_suffix = " (Вчера)"
+
+        responses.append(f"<b>{day.day_name}{day_suffix}</b> - <b>{week.week_number} Неделя</b>")
         responses.append(f"")
 
         for lesson in day.lessons:
-            # Convert groups string to list if it's not already
-            groups = lesson.groups if isinstance(lesson.groups, list) else [lesson.groups]
             # Create links for each group
+            groups = lesson.groups if isinstance(lesson.groups, list) else [lesson.groups]
             group_links = []
             for group in groups:
                 link = f"<a href='{await create_start_link(bot = message.bot, payload=group, encode=True)}'>{group}</a>"
                 group_links.append(link)
 
+            lesson_subgroup_text = f"  |  {lesson.subgroup}" if lesson.subgroup else ""
+            lesson_type_text = f"  |  {lesson.type}" if lesson.type else ""
             responses.append(
-                f"<b>{lesson.time}</b>\n"
-                f"{lesson.name.title()}\n"
+                f"{lesson.name.capitalize()}\n"
+                f"<b>{TIME_TO_EMOJI.get(lesson.time.split('-')[0].strip(), '')} {lesson.time}</b>{lesson_type_text}{lesson_subgroup_text}\n"
                 f"{lesson.place.split(' / ')[1]}\n"
                 f"{', '.join(group_links)}\n"
-                f"{lesson.type}\n"
             )
 
     elif current_tab == 'consultations' and schedule.consultations:
         responses.append("<b>Расписание консультаций:</b>")
         responses.append(f"")
+
         for day in schedule.consultations.days:
-            responses.append(f"<b>{day.day_name}</b>")
+            # Get relative day label (вчера/сегодня/завтра)
+            day_label = ""
+            today = datetime.now().strftime("%A").lower()
+            if day.day_name.lower() == today:
+                day_label = " (сегодня)"
+            elif day.day_name.lower() == (datetime.now() + timedelta(days=1)).strftime("%A").lower():
+                day_label = " (завтра)"
+            elif day.day_name.lower() == (datetime.now() - timedelta(days=1)).strftime("%A").lower():
+                day_label = " (вчера)"
+
+            responses.append(f"<b>{day.day_name}{day_label}</b>")
             responses.append(f"")
             for lesson in day.lessons:
-                # Convert groups string to list if it's not already
-                groups = lesson.groups if isinstance(lesson.groups, list) else [lesson.groups]
                 # Create links for each group
+                groups = lesson.groups if isinstance(lesson.groups, list) else [lesson.groups]
                 group_links = []
                 for group in groups:
                     link = f"<a href='{await create_start_link(bot = message.bot, payload=group, encode=True)}'>{group}</a>"
                     group_links.append(link)
 
+                lesson_subgroup_text = f"  |  {lesson.subgroup}" if lesson.subgroup else ""
+                lesson_type_text = f"  |  {lesson.type}" if lesson.type else ""
                 responses.append(
-                    f"<b>{lesson.time}</b>\n"
-                    f"{lesson.name.title()}\n"
+                    f"{lesson.name.capitalize()}\n"
+                    f"<b>{lesson.time}</b>{lesson_type_text}{lesson_subgroup_text}\n"
                     f"{lesson.place.split(' / ')[1]}\n"
+                    f"{', '.join(group_links)}\n"
                 )
 
     elif current_tab == 'session' and schedule.session:
         responses.append("<b>Расписание сессии:</b>")
         responses.append(f"")
+
         for day in schedule.session.days:
-            responses.append(f"<b>{day.day_name}:</b>")
+            # Get relative day label (вчера/сегодня/завтра)
+            day_suffix = ""
+            today = datetime.now().strftime("%A").lower()
+            if day.day_name.lower() == today:
+                day_suffix = " (Сегодня)"
+            elif day.day_name.lower() == (datetime.now() + timedelta(days=1)).strftime("%A").lower():
+                day_suffix = " (Завтра)"
+            elif day.day_name.lower() == (datetime.now() - timedelta(days=1)).strftime("%A").lower():
+                day_suffix = " (Вчера)"
+
+            responses.append(f"<b>{day.day_name}{day_suffix}:</b>")
             responses.append(f"")
+
             for lesson in day.lessons:
-                # Convert groups string to list if it's not already
-                groups = lesson.groups if isinstance(lesson.groups, list) else [lesson.groups]
                 # Create links for each group
+                groups = lesson.groups if isinstance(lesson.groups, list) else [lesson.groups]
                 group_links = []
                 for group in groups:
                     link = f"<a href='{await create_start_link(bot = message.bot, payload=group, encode=True)}'>{group}</a>"
                     group_links.append(link)
 
+                lesson_subgroup_text = f"  |  {lesson.subgroup}" if lesson.subgroup else ""
+                lesson_type_text = f"  |  {lesson.type}" if lesson.type else ""
                 responses.append(
-                    f"<b>{lesson.time}</b>\n"
-                    f"{lesson.name.title()}\n"
+                    f"{lesson.name.capitalize()}\n"
+                    f"<b>{lesson.time}</b>{lesson_type_text}{lesson_subgroup_text}\n"
                     f"{lesson.place.split(' / ')[1]}\n"
                     f"{', '.join(group_links)}\n"
-                    f"{lesson.type}\n"
                 )
 
     subscribed = data.get('schedule').person_name in await notifyer.get_subscribed(user_id)
     if not update:
         await message.answer(
             "\n".join(responses),
-            reply_markup=build_keyboard(current_tab, current_week, current_day, max_days, 'professor', subscribed), parse_mode=ParseMode.HTML, link_preview_options=LinkPreviewOptions(is_disabled=True)
+            reply_markup=schedule_pagination_keyboard(current_tab, current_week, current_day, max_days, 'professor', subscribed),
+            parse_mode=ParseMode.HTML, link_preview_options=LinkPreviewOptions(is_disabled=True)
         )
     else:
         await message.edit_text(
             "\n".join(responses),
-            reply_markup=build_keyboard(current_tab, current_week, current_day, max_days, 'professor', subscribed), parse_mode=ParseMode.HTML, link_preview_options=LinkPreviewOptions(is_disabled=True)
+            reply_markup=schedule_pagination_keyboard(current_tab, current_week, current_day, max_days, 'professor', subscribed),
+            parse_mode=ParseMode.HTML, link_preview_options=LinkPreviewOptions(is_disabled=True)
         )
 
 
@@ -256,7 +354,11 @@ async def _calculate_current_day(schedule, week_number: int) -> Tuple[int, int]:
     if current_day_name in available_days:
         current_day_index = available_days.index(current_day_name) + 1
     else:
-        current_day_index = 1
+        # Select the middle day of the week
+        if max_days >= 1:
+            current_day_index = (max_days + 1) // 2
+        else:
+            current_day_index = 1
 
     return current_day_index, max_days
 
@@ -286,20 +388,43 @@ async def process_callback(callback: CallbackQuery, state: FSMContext, notifyer:
         if action in ['basic_tab', 'session_tab', 'consultations_tab']:
             data['current_tab'] = action.replace('_tab', '')
             logger.debug(f"Switched to tab: {data['current_tab']}")
+
         elif action == 'swap_week':
             data['current_week'] = 2 if data['current_week'] == 1 else 1
             current_day, max_days = await _calculate_current_day(data['schedule'], data['current_week'])
-            data['max_days'] = max_days  # Update max_days in state
-            data['current_day'] = min(data['current_day'], max_days)
+            data['max_days'] = max_days
+            data['current_day'] = min(data['current_day'], max_days) # clamp max day
             logger.debug(f"Swapped to week: {data['current_week']}")
+
+        elif action == 'open_today':
+            new_current_day, new_max_days = await _calculate_current_day(data['schedule'], data['current_week'])
+            if new_current_day == data['current_day']:
+                no_rerender = True # avoid message not modified error
+
+            data['current_day'] = new_current_day
+            logger.debug(f"Changed to day: {data['current_day']}")
+
         elif action in ['prev_day', 'next_day']:
             day_delta = -1 if action == 'prev_day' else 1
             new_day = data['current_day'] + day_delta
-            if 1 <= new_day <= data['max_days']:
+
+            # If we hit the boundary, switch weeks (@martin_elcoff idea)
+            if new_day < 1:
+                # Switch to previous week's last day
+                data['current_week'] = 2 if data['current_week'] == 1 else 1
+                current_day, max_days = await _calculate_current_day(data['schedule'], data['current_week'])
+                data['max_days'] = max_days
+                data['current_day'] = max_days
+            elif new_day > data['max_days']:
+                # Switch to next week's first day
+                data['current_week'] = 2 if data['current_week'] == 1 else 1
+                current_day, max_days = await _calculate_current_day(data['schedule'], data['current_week'])
+                data['max_days'] = max_days
+                data['current_day'] = 1
+            else:
                 data['current_day'] = new_day
                 logger.debug(f"Changed to day: {data['current_day']}")
-            else:
-                no_rerender = True
+
         elif action == 'notify_me':
             schedule_id = data['schedule'].group_name if data['type'] == 'group' else data['schedule'].person_name
             is_subscribed = schedule_id in await notifyer.get_subscribed(callback.from_user.id)
@@ -312,7 +437,7 @@ async def process_callback(callback: CallbackQuery, state: FSMContext, notifyer:
                 answer = "Функция отслеживания зарегистрирована"
 
             logger.info(f"User {callback.from_user.id} {'unsubscribed from' if is_subscribed else 'subscribed to'} {schedule_id}")
-            no_rerender = False
+            no_rerender = False # need to rerender keyboard
 
         await state.update_data(data)
 
@@ -328,8 +453,7 @@ async def process_callback(callback: CallbackQuery, state: FSMContext, notifyer:
         logger.error(f"Error processing callback {callback.data}: {str(e)}", exc_info=True)
         await callback.answer("Failed to process action", show_alert=True)
 
-
-async def _process_text(search_query: str, message: Message, search_results: SearchResultList, state: FSMContext, notifyer: NotificationManager) -> None:
+async def _process_text(search_query: str, message: Message, search_results: SearchResultList, notifyer: NotificationManager, state: FSMContext) -> None:
     """
     Process text input to find and display schedule.
 
@@ -344,7 +468,7 @@ async def _process_text(search_query: str, message: Message, search_results: Sea
             result = search_results.get_by_search_query(search_query)
             if not result:
                 logger.info(f"No results found for query: {search_query}")
-                await message.answer('Ничего не найдено')
+                await message.answer('Такой группы или преподавателя не найдено')
                 return
 
 
@@ -383,14 +507,9 @@ async def _process_text(search_query: str, message: Message, search_results: Sea
                             except Exception as e:
                                 logger.error(f"Failed to send notification to {subscriber_id}: {e}")
 
-                # Проверяем, есть ли недели в расписании
-                if not schedule.weeks:
-                    await message.answer('Не удалось получить расписание: Расписание пустое')
-                    return
-
                 current_date = datetime.now()
                 current_week_ = current_date.isocalendar()[1]
-                week_is_even = current_week_ % 2
+                week_is_even = current_week_ % 2 # возможно нужно будет ревертнуть
 
                 current_day_index, max_days = await _calculate_current_day(schedule, week_is_even)
 
@@ -442,11 +561,6 @@ async def _process_text(search_query: str, message: Message, search_results: Sea
                             except Exception as e:
                                 logger.error(f"Failed to send notification to {subscriber_id}: {e}")
 
-                # Проверяем, есть ли недели в расписании
-                if not schedule.weeks:
-                    await message.answer('Не удалось получить расписание: Расписание пустое')
-                    return
-
                 current_date = datetime.now()
                 current_week_ = current_date.isocalendar()[1]
                 week_is_even = current_week_ % 2
@@ -472,13 +586,13 @@ async def _process_text(search_query: str, message: Message, search_results: Sea
 
 @user_router.message(CommandStart(deep_link=True))
 @user_router.message(CommandStart())
-async def process_cmd_start(message: Message, command: CommandObject, state: FSMContext, search_results: SearchResultList, notifyer: NotificationManager) -> None:
+async def process_cmd_start(message: Message, command: CommandObject, search_results: SearchResultList, notifyer: NotificationManager, state: FSMContext) -> None:
     """Handle /start command"""
     deep_link = command.args
     if deep_link:
         payload = decode_payload(deep_link)
         if payload:
-            await _process_text(payload,message, search_results, state, notifyer)
+            await _process_text(payload, message, search_results, notifyer, state)
         else:
             await message.answer('Неверная ссылка')
     else:
@@ -493,78 +607,22 @@ async def process_cmd_help(message: Message) -> None:
         f'Например: <a href="{await create_start_link(bot = message.bot, payload="БПИ22-01", encode=True)}">БПИ22-01</a>\n\n'
         '2. В расписании доступны следующие функции:\n'
         '• Переключение между вкладками (Основное/Сессия/Консультации)\n'
-        '• Переключение недель (кнопка свитч)\n'
-        '• Переключение между днями недели (стрелки влево/вправо)\n'
-        '• Отслеживание изменений (кнопка 🔔)\n\n'
+        '• Переключение недель (Кнопка свитч х/2)\n'
+        '• Переключение между днями недели (Стрелки влево/вправо)\n'
+        '• Отслеживание изменений (Кнопка Отслеживать 🔔)\n\n'
         '3. Функция отслеживания:\n'
-        '• Нажмите на кнопку 🔔 чтобы включить уведомления\n'
-        '• Получайте уведомления об изменениях в расписании\n'
+        '• Нажмите на кнопку Отслеживать🔔 чтобы включить уведомления\n'
+        '• Получайте уведомления об изменениях в расписании (основное, консультации, сессия)\n'
         '• Отслеживайте несколько групп или преподавателей одновременно\n\n'
         '4. Быстрая навигация:\n'
         '• Нажимайте на названия групп в расписании преподавателя\n'
         '• Нажимайте на имена преподавателей в расписании группы\n\n'
-        'Бот автоматически показывает текущую неделю и день при первом открытии расписания.\n\n'
-        'Поддержать проект: /paysupport'
+        '• Ссылку можно сохранить, чтобы кликом открывать расписание\n\n'
+        'Бот стремится автоматически показать текущую неделю и день при открытии расписания.\n\n'
     )
-    await message.answer(help_text, parse_mode=ParseMode.HTML, link_preview_options=LinkPreviewOptions(is_disabled=True))
-
-@user_router.message(Command('paysupport'))
-async def process_cmd_paysupport(message: Message):
-    """Handle /paysupport command"""
-    support_text = (
-        'Почему важно поддержать проект?\n\n'
-        '1. Серверные расходы:\n'
-        '• Для обработки расписаний требуются хорошие сервера\n'
-        '• Постоянные затраты на хостинг и обслуживание\n\n'
-        '2. Развитие проекта:\n'
-        '• Я студент, разрабатывающий этот проект в свободное время\n'
-        '• Ваша поддержка помогает выделять больше времени на улучшения\n\n'
-        '3. Как поддержать проект:\n'
-        '• Финансово: используйте команду /donate\n'
-        '• Разработкой: внесите свой вклад на GitHub\n'
-        '• Отзывами: делитесь идеями и сообщайте о багах\n\n'
-        'Любая помощь ценна для развития проекта! ❤️'
-    )
-    await message.answer(support_text)
-
-@user_router.message(Command('donate'))
-async def process_cmd_donate(message: Message, command: CommandObject):
-    num_stars = command.args
-    try:
-        prices = [LabeledPrice(label="XTR", amount=num_stars)]
-
-        await message.answer_invoice(
-            title='Telegram Payments',
-            description='Поддержка проекта',
-            prices=prices,
-            provider_token='',
-            payload='project_support',
-            currency='XTR',
-        )
-    except Exception:
-        await message.answer('Неверная сумма пожертвования, /donate num_stars')
-
-
-@user_router.message(Command('refund'))
-async def process_cmd_refund(message: Message, command: CommandObject):
-    """Handle /refund command"""
-    transaction_id = command.args
-    try:
-        await message.bot.refund_star_payment(user_id=message.from_user.id, telegram_payment_charge_id=transaction_id)
-    except Exception:
-        await message.answer('Неверный id транзакции, /refund id')
-
-@user_router.pre_checkout_query()
-async def process_pre_checkout_query(pre_checkout_query: PreCheckoutQuery):
-    """Handle pre-checkout query"""
-    await pre_checkout_query.answer(ok=True)
-
-@user_router.message(F.successful_payment)
-async def process_successful_payment(message: Message):
-    """Handle successful payment"""
-    await message.answer(f'id: {message.successful_payment.telegram_payment_charge_id}', message_effect_id='5159385139981059251')
+    await message.answer(help_text, reply_markup=help_keyboard(), parse_mode=ParseMode.HTML, link_preview_options=LinkPreviewOptions(is_disabled=True))
 
 @user_router.message(F.text)
-async def process_text(message: Message, search_results: SearchResultList, state: FSMContext, notifyer: NotificationManager):
+async def process_text(message: Message, search_results: SearchResultList, notifyer: NotificationManager, state: FSMContext):
     """Handle text input"""
-    await _process_text(message.text, message, search_results, state, notifyer)
+    await _process_text(message.text, message, search_results, notifyer, state)
