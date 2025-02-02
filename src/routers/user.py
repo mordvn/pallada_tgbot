@@ -598,11 +598,17 @@ async def process_cmd_start(message: Message, command: CommandObject, search_res
     """Handle /start command"""
     deep_link = command.args
     if deep_link:
-        payload = decode_payload(deep_link)
+        try:
+            payload = decode_payload(deep_link) # fix crash if link is modified
+        except Exception as e:
+            logger.error(f"Error decoding deep link: {e}")
+            await message.answer('Неверная ссылка: ссылка повреждена')
+            return
+
         if payload:
             await _process_text(payload, message, search_results, notifyer, state)
         else:
-            await message.answer('Неверная ссылка')
+            await message.answer('Неверная ссылка: ссылка пустая')
     else:
         await message.answer('Напиши название группы или фамилию преподавателя, как ты делал(а) это на сайте')
 
