@@ -158,6 +158,8 @@ async def _render_group_schedule(message: Message, user_id: int, state: FSMConte
                     f"<a href='{await create_start_link(bot = message.bot, payload=lesson.professor, encode=True)}'>{lesson.professor}</a>",
                 ]
                 responses.append("\n".join(lesson_text) + "\n")
+    else:
+        responses.append("Расписание занятий отсутствует")
 
 
     subscribed = data.get('schedule').group_name in await notifyer.get_subscribed(user_id)
@@ -314,6 +316,8 @@ async def _render_professor_schedule(message: Message, user_id: int, state: FSMC
                     f"{lesson.place.split(' / ')[1]}\n"
                     f"{', '.join(group_links)}\n"
                 )
+    else:
+        responses.append("Расписание занятий отсутствует")
 
     subscribed = data.get('schedule').person_name in await notifyer.get_subscribed(user_id)
     if not update:
@@ -345,6 +349,10 @@ async def _calculate_current_day(schedule, week_number: int) -> Tuple[int, int]:
     Calculate the current day index based on schedule and week number.
     Returns tuple of (day_index, max_days).
     """
+    if not schedule.weeks:
+        return 1, 1
+    # Если расписания нету
+
     available_days = [day.day_name for day in schedule.weeks[week_number-1].days if day.lessons]
     max_days = len(available_days)
 
