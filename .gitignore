@@ -90,6 +90,8 @@ dmypy.json
 *.db
 *.sqlite3
 *.sqlite
+database/
+cache/
 
 # Backup files
 *.bak
