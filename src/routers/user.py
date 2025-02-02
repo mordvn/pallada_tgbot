@@ -116,7 +116,7 @@ async def _render_group_schedule(message: Message, user_id: int, state: FSMConte
         elif is_yesterday:
             day_suffix = " (Вчера)"
 
-        responses.append(f"<b>{day.day_name}{day_suffix}:</b>")
+        responses.append(f"<b>{day.day_name}{day_suffix}</b> - <b>{week.week_number} Неделя</b>")
         responses.append(f"")
 
         for lesson in day.lessons:
