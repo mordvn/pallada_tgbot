@@ -6,7 +6,7 @@ A Telegram bot for accessing and tracking class schedules at Siberian State Univ
 <div align="center" style="display: flex; justify-content: space-between;">
   <img src="images/schedule.png" width="250" alt="Schedule View"/>
   <img src="images/changes_tracking.png" width="250" alt="Changes View"/>
-  <img src="images/ai_analytics.png" width="250" alt="AI Analysis"/>
+  <img src="images/ai_analytics.PNG" width="250" alt="AI Analysis"/>
 </div>
 
 ## Features ✨
