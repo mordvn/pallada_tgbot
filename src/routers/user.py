@@ -199,7 +199,7 @@ async def _render_professor_schedule(message: Message, user_id: int, state: FSMC
         # Check if this is today, tomorrow, or yesterday
         current_date = datetime.now()
         current_weekday = current_date.weekday()
-        current_week_number = current_date.isocalendar()[1] % 2
+        current_week_number = current_date.isocalendar()[1]
 
         is_today = (
             current_week_number == current_week and
@@ -355,6 +355,8 @@ async def _calculate_current_day(schedule, week_number: int) -> Tuple[int, int]:
 
     available_days = [day.day_name for day in schedule.weeks[week_number-1].days if day.lessons]
     max_days = len(available_days)
+    if max_days == 0:
+        return 1, 1
 
     current_day_index = datetime.now().isoweekday() - 1
     current_day_name = DAYS_OF_WEEK[current_day_index]
@@ -517,7 +519,7 @@ async def _process_text(search_query: str, message: Message, search_results: Sea
 
                 current_date = datetime.now()
                 current_week_ = current_date.isocalendar()[1]
-                week_is_even = current_week_ % 2 # возможно нужно будет ревертнуть
+                week_is_even = 2 if current_week_ % 2 == 0 else 1  # 2 для четной недели, 1 для нечетной
 
                 current_day_index, max_days = await _calculate_current_day(schedule, week_is_even)
 
@@ -571,7 +573,7 @@ async def _process_text(search_query: str, message: Message, search_results: Sea
 
                 current_date = datetime.now()
                 current_week_ = current_date.isocalendar()[1]
-                week_is_even = current_week_ % 2
+                week_is_even = 2 if current_week_ % 2 == 0 else 1
 
                 current_day_index, max_days = await _calculate_current_day(schedule, week_is_even)
 
