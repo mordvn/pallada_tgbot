@@ -80,19 +80,18 @@ async def _render_group_schedule(message: Message, user_id: int, state: FSMConte
     """
     data = await state.get_data()
     current_tab = data.get('current_tab')
-    current_week = data.get('current_week')
-    current_day = data.get('current_day')
+    current_week_index = data.get('current_week_index')
+    current_day_index = data.get('current_day_index')
     schedule = data.get('schedule')
-    #max_weeks = data.get('max_weeks')
-    max_days = data.get('max_days')
+    num_max_days = data.get('num_max_days')
 
     responses = []
     responses.append(f"<a href=\'{await create_start_link(bot = message.bot, payload=schedule.group_name, encode=True)}\'>{schedule.group_name}</a> {schedule.semester}")
     responses.append(f"")
 
     if current_tab == 'basic' and schedule.weeks:
-        week = schedule.weeks[current_week - 1]
-        day = week.days[current_day - 1]
+        week = schedule.weeks[current_week_index - 1]
+        day = week.days[current_day_index - 1]
 
         # Check if this is today, tomorrow, or yesterday
         current_date = datetime.now()
@@ -100,20 +99,20 @@ async def _render_group_schedule(message: Message, user_id: int, state: FSMConte
         current_week_number = current_date.isocalendar()[1] % 2  # Get 0 or 1 for even/odd week
 
         is_today = (
-            (current_week_number == (current_week - 1)) and  # Convert week number (1/2) to (0/1)
+            (current_week_number == (current_week_index - 1)) and
             DAYS_OF_WEEK[current_weekday] == day.day_name
         )
         is_tomorrow = (
-            (current_week_number == (current_week - 1) and
+            (current_week_number == (current_week_index - 1) and
              DAYS_OF_WEEK[(current_weekday + 1) % 7] == day.day_name) or
-            (current_week_number != (current_week - 1) and
+            (current_week_number != (current_week_index - 1) and
              current_weekday == 6 and
              DAYS_OF_WEEK[0] == day.day_name)
         )
         is_yesterday = (
-            (current_week_number == (current_week - 1) and
+            (current_week_number == (current_week_index - 1) and
              DAYS_OF_WEEK[(current_weekday - 1) % 7] == day.day_name) or
-            (current_week_number != (current_week - 1) and
+            (current_week_number != (current_week_index - 1) and
              current_weekday == 0 and
              DAYS_OF_WEEK[6] == day.day_name)
         )
@@ -176,13 +175,13 @@ async def _render_group_schedule(message: Message, user_id: int, state: FSMConte
     if not update:
         await message.answer(
             "\n".join(responses),
-            reply_markup=schedule_pagination_keyboard(current_tab, current_week, current_day, max_days, 'group', subscribed),
+            reply_markup=schedule_pagination_keyboard(current_tab, current_week_index, current_day_index, num_max_days, 'group', subscribed),
             parse_mode=ParseMode.HTML, link_preview_options=LinkPreviewOptions(is_disabled=True)
         )
     else:
         await message.edit_text(
             "\n".join(responses),
-            reply_markup=schedule_pagination_keyboard(current_tab, current_week, current_day, max_days, 'group', subscribed),
+            reply_markup=schedule_pagination_keyboard(current_tab, current_week_index, current_day_index, num_max_days, 'group', subscribed),
             parse_mode=ParseMode.HTML, link_preview_options=LinkPreviewOptions(is_disabled=True)
         )
 
@@ -192,19 +191,18 @@ async def _render_professor_schedule(message: Message, user_id: int, state: FSMC
     """
     data = await state.get_data()
     current_tab = data['current_tab']
-    current_week = data['current_week']
-    current_day = data['current_day']
+    current_week_index = data['current_week_index']
+    current_day_index = data['current_day_index']
     schedule = data['schedule']
-    #max_weeks = data['max_weeks']
-    max_days = data['max_days']
+    num_max_days = data['num_max_days']
 
     responses = []
     responses.append(f"<a href=\'{await create_start_link(bot = message.bot, payload=schedule.person_name, encode=True)}\'>{schedule.person_name}</a> - {schedule.academic_year}")
     responses.append(f"")
 
     if current_tab == 'basic' and schedule.weeks:
-        week = schedule.weeks[current_week - 1]
-        day = week.days[current_day - 1]
+        week = schedule.weeks[current_week_index - 1]
+        day = week.days[current_day_index - 1]
 
         # Check if this is today, tomorrow, or yesterday
         current_date = datetime.now()
@@ -212,20 +210,20 @@ async def _render_professor_schedule(message: Message, user_id: int, state: FSMC
         current_week_number = current_date.isocalendar()[1] % 2  # Get 0 or 1 for even/odd week
 
         is_today = (
-            (current_week_number == (current_week - 1)) and  # Convert week number (1/2) to (0/1)
+            (current_week_number == (current_week_index - 1)) and
             DAYS_OF_WEEK[current_weekday] == day.day_name
         )
         is_tomorrow = (
-            (current_week_number == (current_week - 1) and
+            (current_week_number == (current_week_index - 1) and
              DAYS_OF_WEEK[(current_weekday + 1) % 7] == day.day_name) or
-            (current_week_number != (current_week - 1) and
+            (current_week_number != (current_week_index - 1) and
              current_weekday == 6 and
              DAYS_OF_WEEK[0] == day.day_name)
         )
         is_yesterday = (
-            (current_week_number == (current_week - 1) and
+            (current_week_number == (current_week_index - 1) and
              DAYS_OF_WEEK[(current_weekday - 1) % 7] == day.day_name) or
-            (current_week_number != (current_week - 1) and
+            (current_week_number != (current_week_index - 1) and
              current_weekday == 0 and
              DAYS_OF_WEEK[6] == day.day_name)
         )
@@ -333,40 +331,40 @@ async def _render_professor_schedule(message: Message, user_id: int, state: FSMC
     if not update:
         await message.answer(
             "\n".join(responses),
-            reply_markup=schedule_pagination_keyboard(current_tab, current_week, current_day, max_days, 'professor', subscribed),
+            reply_markup=schedule_pagination_keyboard(current_tab, current_week_index, current_day_index, num_max_days, 'professor', subscribed),
             parse_mode=ParseMode.HTML, link_preview_options=LinkPreviewOptions(is_disabled=True)
         )
     else:
         await message.edit_text(
             "\n".join(responses),
-            reply_markup=schedule_pagination_keyboard(current_tab, current_week, current_day, max_days, 'professor', subscribed),
+            reply_markup=schedule_pagination_keyboard(current_tab, current_week_index, current_day_index, num_max_days, 'professor', subscribed),
             parse_mode=ParseMode.HTML, link_preview_options=LinkPreviewOptions(is_disabled=True)
         )
 
 async def _calculate_current_day(schedule, week_number: int) -> Tuple[int, int, int]:
     """
     Calculate the current day index based on schedule and week number.
-    Returns tuple of (day_index, max_days, week_number).
+    Returns tuple of (current_day_index, num_max_days, week_number).
     """
     if not schedule.weeks:
         return 1, 1, week_number
 
     available_days = [day.day_name for day in schedule.weeks[week_number-1].days if day.lessons]
-    max_days = len(available_days)
-    if max_days == 0:
+    num_max_days = len(available_days)
+    if num_max_days == 0:
         return 1, 1, week_number
 
     current_day_index = datetime.now().isoweekday() - 1
     current_day_name = DAYS_OF_WEEK[current_day_index]
 
     if current_day_name in available_days:
-        return available_days.index(current_day_name) + 1, max_days, week_number
+        return available_days.index(current_day_name) + 1, num_max_days, week_number
 
     # Find next available day
     # First check remaining days in current week
     for day in range(current_day_index + 1, 7):
         if DAYS_OF_WEEK[day] in available_days:
-            return available_days.index(DAYS_OF_WEEK[day]) + 1, max_days, week_number
+            return available_days.index(DAYS_OF_WEEK[day]) + 1, num_max_days, week_number
 
     # If not found, switch to next week and check from beginning
     next_week = 2 if week_number == 1 else 1
@@ -376,7 +374,7 @@ async def _calculate_current_day(schedule, week_number: int) -> Tuple[int, int, 
         return 1, len(next_week_days), next_week
 
     # If still nothing found, return first available day in current week
-    return 1, max_days, week_number
+    return 1, num_max_days, week_number
 
 @user_router.callback_query(F.data, UserStates.in_group_schedule_view)
 @user_router.callback_query(F.data, UserStates.in_professor_schedule_view)
@@ -406,41 +404,50 @@ async def process_callback(callback: CallbackQuery, state: FSMContext, notifyer:
             logger.debug(f"Switched to tab: {data['current_tab']}")
 
         elif action == 'swap_week':
-            data['current_week'] = 2 if data['current_week'] == 1 else 1
-            current_day, max_days, week_number = await _calculate_current_day(data['schedule'], data['current_week'])
-            data['max_days'] = max_days
-            data['current_day'] = min(data['current_day'], max_days) # clamp max day
-            logger.debug(f"Swapped to week: {data['current_week']}")
+            data['current_week_index'] = 2 if data['current_week_index'] == 1 else 1
+            current_day_index, num_max_days, week_number = await _calculate_current_day(data['schedule'], data['current_week_index'])
+            data['num_max_days'] = num_max_days
+            data['current_day_index'] = min(data['current_day_index'], num_max_days)
+            logger.debug(f"Swapped to week: {data['current_week_index']}")
 
         elif action == 'open_today':
-            new_current_day, new_max_days, new_week_number = await _calculate_current_day(data['schedule'], data['current_week'])
-            if new_current_day == data['current_day'] and new_week_number == data['current_week']:
-                no_rerender = True # avoid message not modified error
+            # Calculate current week number (1 for even week, 2 for odd week)
+            current_date = datetime.now()
+            current_week = current_date.isocalendar()[1]
+            current_week_number = 1 if current_week % 2 == 0 else 2
 
-            data['current_day'] = new_current_day
-            data['current_week'] = new_week_number
-            logger.debug(f"Changed to day: {data['current_day']} and week: {data['current_week']}")
+            new_current_day_index, new_num_max_days, new_week_number = await _calculate_current_day(
+                data['schedule'],
+                current_week_number  # Use current_week_number instead of data['current_week_index']
+            )
+
+            if new_current_day_index == data['current_day_index'] and current_week_number == data['current_week_index']:
+                no_rerender = True
+
+            data['current_day_index'] = new_current_day_index
+            data['current_week_index'] = current_week_number  # Use current_week_number instead of new_week_number
+            logger.debug(f"Changed to day: {data['current_day_index']} and week: {data['current_week_index']}")
 
         elif action in ['prev_day', 'next_day']:
             day_delta = -1 if action == 'prev_day' else 1
-            new_day = data['current_day'] + day_delta
+            new_day_index = data['current_day_index'] + day_delta
 
             # If we hit the boundary, switch weeks (@martin_elcoff idea)
-            if new_day < 1:
+            if new_day_index < 1:
                 # Switch to previous week's last day
-                data['current_week'] = 2 if data['current_week'] == 1 else 1
-                current_day, max_days, week_number = await _calculate_current_day(data['schedule'], data['current_week'])
-                data['max_days'] = max_days
-                data['current_day'] = max_days
-            elif new_day > data['max_days']:
+                data['current_week_index'] = 2 if data['current_week_index'] == 1 else 1
+                current_day_index, num_max_days, week_number = await _calculate_current_day(data['schedule'], data['current_week_index'])
+                data['num_max_days'] = num_max_days
+                data['current_day_index'] = num_max_days
+            elif new_day_index > data['num_max_days']:
                 # Switch to next week's first day
-                data['current_week'] = 2 if data['current_week'] == 1 else 1
-                current_day, max_days, week_number = await _calculate_current_day(data['schedule'], data['current_week'])
-                data['max_days'] = max_days
-                data['current_day'] = 1
+                data['current_week_index'] = 2 if data['current_week_index'] == 1 else 1
+                current_day_index, num_max_days, week_number = await _calculate_current_day(data['schedule'], data['current_week_index'])
+                data['num_max_days'] = num_max_days
+                data['current_day_index'] = 1
             else:
-                data['current_day'] = new_day
-                logger.debug(f"Changed to day: {data['current_day']}")
+                data['current_day_index'] = new_day_index
+                logger.debug(f"Changed to day: {data['current_day_index']}")
 
         elif action == 'notify_me':
             schedule_id = data['schedule'].group_name if data['type'] == 'group' else data['schedule'].person_name
@@ -528,15 +535,15 @@ async def _process_text(search_query: str, message: Message, search_results: Sea
                 current_week_ = current_date.isocalendar()[1]
                 week_is_even = 1 if current_week_ % 2 == 0 else 2  # 1 для четной недели, 2 для нечетной
 
-                current_day_index, max_days, week_number = await _calculate_current_day(schedule, week_is_even)
+                current_day_index, num_max_days, week_number = await _calculate_current_day(schedule, week_is_even)
 
                 await state.set_state(UserStates.in_group_schedule_view)
                 await state.update_data(
                     current_tab='basic',
-                    current_week=week_number,
-                    current_day=current_day_index,
+                    current_week_index=week_number,
+                    current_day_index=current_day_index,
                     max_weeks=len(schedule.weeks),
-                    max_days=max_days,
+                    num_max_days=num_max_days,
                     schedule=schedule,
                     type='group'
                 )
@@ -582,15 +589,15 @@ async def _process_text(search_query: str, message: Message, search_results: Sea
                 current_week_ = current_date.isocalendar()[1]
                 week_is_even = 1 if current_week_ % 2 == 0 else 2  # 1 для четной недели, 2 для нечетной
 
-                current_day_index, max_days, week_number = await _calculate_current_day(schedule, week_is_even)
+                current_day_index, num_max_days, week_number = await _calculate_current_day(schedule, week_is_even)
 
                 await state.set_state(UserStates.in_professor_schedule_view)
                 await state.update_data(
                     current_tab='basic',
-                    current_week=week_number,
-                    current_day=current_day_index,
+                    current_week_index=week_number,
+                    current_day_index=current_day_index,
                     max_weeks=len(schedule.weeks),
-                    max_days=max_days,
+                    num_max_days=num_max_days,
                     schedule=schedule,
                     type='professor'
                 )
@@ -630,8 +637,9 @@ async def process_cmd_help(message: Message) -> None:
         f'Например: <a href="{await create_start_link(bot = message.bot, payload="bpi2201", encode=True)}">bpi2201</a>, <a href="{await create_start_link(bot = message.bot, payload="тынченко вв", encode=True)}">тынченко вв</a>, <a href="{await create_start_link(bot = message.bot, payload="тынченко св", encode=True)}">тынченко св</a>\n\n'
         '2. В расписании доступны следующие функции:\n'
         '• Переключение между вкладками (Основное/Сессия/Консультации)\n'
-        '• Переключение недель (Кнопка свитч х/2)\n'
+        '• Переключение недель (Левый свитч х/2)\n'
         '• Переключение между днями недели (Стрелки влево/вправо)\n'
+        '• Кнопка открытия сегодняшнего дня (Свитч между стрелками x/x)\n'
         '• Отслеживание изменений (Кнопка Отслеживать 🔔)\n\n'
         '3. Функция отслеживания:\n'
         '• Нажмите на кнопку Отслеживать🔔 чтобы включить уведомления\n'
@@ -641,7 +649,7 @@ async def process_cmd_help(message: Message) -> None:
         '• Нажимайте на названия групп в расписании преподавателя\n'
         '• Нажимайте на имена преподавателей в расписании группы\n\n'
         '• Ссылку можно сохранить, чтобы кликом открывать расписание\n\n'
-        'Бот стремится автоматически показать текущую неделю и день при открытии расписания.\n\n'
+        'Бот стремится автоматически показать текущий или ближайший следующий день при открытии расписания.\n\n'
     )
     await message.answer(help_text, reply_markup=help_keyboard(), parse_mode=ParseMode.HTML, link_preview_options=LinkPreviewOptions(is_disabled=True))
 
