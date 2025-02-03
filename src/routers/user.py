@@ -618,7 +618,7 @@ async def process_cmd_help(message: Message) -> None:
     help_text = (
         'Как пользоваться ботом:\n\n'
         '1. Напишите название группы или фамилию преподавателя\n'
-        f'Например: <a href="{await create_start_link(bot = message.bot, payload="БПИ22-01", encode=True)}">БПИ22-01</a>\n\n'
+        f'Например: <a href="{await create_start_link(bot = message.bot, payload="bpi2201", encode=True)}">bpi2201</a>, <a href="{await create_start_link(bot = message.bot, payload="тынченко вв", encode=True)}">тынченко вв</a>, <a href="{await create_start_link(bot = message.bot, payload="тынченко св", encode=True)}">тынченко св</a>\n\n'
         '2. В расписании доступны следующие функции:\n'
         '• Переключение между вкладками (Основное/Сессия/Консультации)\n'
         '• Переключение недель (Кнопка свитч х/2)\n'
