@@ -1,12 +1,13 @@
-# SibSAU Schedule Bot <img src="images/icon.jpg" width="50" alt="Bot Icon"/>
+<img src="images/icon.jpg" width="50" alt="Bot Icon"/>
+# SibSAU Schedule Bot
 
 
 A Telegram bot for accessing and tracking class schedules at Siberian State University of Science and Technology. Get instant access to both student group and professor schedules, with real-time updates, notifications for changes, and AI-powered schedule analysis.
 
 <div align="center" style="display: flex; justify-content: space-between;">
-  <img src="images/schedule.png" width="250" alt="Schedule View"/>
-  <img src="images/changes_tracking.png" width="250" alt="Changes View"/>
-  <img src="images/ai_analytics.PNG" width="250" alt="AI Analysis"/>
+  <img src="images/1.jpg" width="250" alt="Schedule View"/>
+  <img src="images/2.png" width="250" alt="Changes Tracking"/>
+  <img src="images/3.PNG" width="250" alt="AI Support"/>
 </div>
 
 ## Features ✨
