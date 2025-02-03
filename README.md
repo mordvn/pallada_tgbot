@@ -1,21 +1,32 @@
 # SibSAU Schedule Bot 🤖
 
-A Telegram bot for accessing and tracking class schedules at Siberian State University of Science and Technology. Get instant access to both student group and professor schedules, with real-time updates and notifications for any changes.
+A Telegram bot for accessing and tracking class schedules at Siberian State University of Science and Technology. Get instant access to both student group and professor schedules, with real-time updates, notifications for changes, and AI-powered schedule analysis.
 
-<div align="center">
-  <img src="images/demo.png" width="400" alt="Bot Demo" style="margin-right: 20px"/>
-  <img src="images/schedule.png" width="400" alt="Schedule View"/>
+<div align="center" style="display: flex; justify-content: space-between;">
+  <img src="images/demo.png" width="250" alt="Bot Demo"/>
+  <img src="images/schedule.png" width="250" alt="Schedule View"/>
+  <img src="images/ai.png" width="250" alt="AI Analysis"/>
 </div>
 
 ## Features ✨
 
 - 🔍 Quick search for both student groups and professors
 - 📅 View schedules by week and day
-- 🔄 Real-time schedule updates˘¿
+- 🔄 Real-time schedule updates
 - 🔔 Notifications for schedule changes
+- 🤖 AI-powered schedule analysis
 - 📱 User-friendly interface
 - 🔗 Quick navigation between related schedules
 - 📊 Support for regular classes, exam sessions, and consultations
+
+## AI Features 🧠
+
+The bot now includes AI capabilities:
+- 📈 Smart schedule analysis
+- 💡 Intelligent insights about your schedule
+- 🎯 Key schedule patterns identification
+- ⚡️ Quick schedule summaries
+- 🔍 Schedule optimization suggestions
 
 ## Installation & Development Setup 🛠️
 
@@ -51,6 +62,7 @@ poetry run python src/__init__.py
 2. Enter a group name or professor's surname
 3. Navigate through the schedule using the inline keyboard
 4. Enable notifications to stay updated about schedule changes
+5. Use the AI analysis button (📊) to get smart insights about your schedule
 
 ## Contributing 🤝
 
@@ -67,6 +79,7 @@ Contributions are welcome! Here's how you can help:
 - Thanks to SibSAU for providing schedule data
 - All contributors who have helped improve this bot
 - The Python Telegram Bot community for their excellent documentation and support
+- GPT-4 for powering the AI analysis features
 
 ## Support the Project ❤️
 

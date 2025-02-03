@@ -1,10 +1,10 @@
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram.types import InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup, CopyTextButton
 
 NUM_MAX_WEEKS = 2
 
 def schedule_pagination_keyboard(current_tab: str, current_week_index: int, current_day_index: int,
-                  num_max_days: int, schedule_type: str, subscribed: bool) -> InlineKeyboardMarkup:
+                  num_max_days: int, schedule_type: str, subscribed: bool, link: str) -> InlineKeyboardMarkup:
     """
     Build keyboard markup based on schedule type and current view state.
     """
@@ -44,7 +44,9 @@ def schedule_pagination_keyboard(current_tab: str, current_week_index: int, curr
         builder.button(text=f'{current_day_index}/{num_max_days}', callback_data='open_today')
         builder.button(text='>>', callback_data='next_day')\
 
-    builder.button(text='Отслеживать 🔔' if not subscribed else 'Отменить 🔕', callback_data='notify_me')
+    builder.button(text='🔔' if not subscribed else '🔕', callback_data='notify_me')
+    builder.button(text='📊', callback_data='ai_summary')
+    builder.button(text='🔁', copy_text=CopyTextButton(text=link))
 
     return builder.adjust(*pattern).as_markup()
 
@@ -54,7 +56,7 @@ def help_keyboard() -> InlineKeyboardMarkup:
     Build keyboard markup for help command.
     """
     builder = InlineKeyboardBuilder()
-    pattern = [1]  # Вертикально кнопочки
+    pattern = [1, 2]  # Вертикально кнопочки
 
     builder.button(text='Задонатить ☕️', url='https://pay.cloudtips.ru/p/190e1668')
     builder.button(text='👨‍💻 Разработчик', url='https://t.me/jahagafagshsjaavv')

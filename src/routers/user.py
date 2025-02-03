@@ -15,6 +15,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.utils.deep_linking import decode_payload, create_start_link
 from aiogram.enums import ParseMode
 from aiogram.types import LinkPreviewOptions
+import g4f
+
 from states import UserStates
 from keyboards import schedule_pagination_keyboard, help_keyboard
 from services.notification_processor import NotificationManager
@@ -45,6 +47,47 @@ TIME_TO_EMOJI = {
     "18:30": "7️⃣",
     "20:10": "8️⃣"
 }
+
+request_template = """
+Ты - помощник для студентов, анализирующий расписание занятий и дающий полезные рекомендации.
+
+Вот расписание занятий на день, представленное в формате:
+
+<День недели> - <Номер недели>
+<Название предмета>
+<Номер пары> <Время начала> - <Время окончания> | <Тип занятия>
+<Место проведения>
+<ФИО преподавателя>
+
+{schedule}
+
+Проанализируй это расписание и предоставь результат в следующем формате:
+
+*Общий анализ:*
+
+•   День недели и номер недели.
+•   Количество пар.
+•   Количество предметов.
+•   Типы занятий (лекции, лабораторные, практики).
+•   Общее описание загрузки (насколько насыщенный день).
+
+*Ключевые моменты:*
+
+•   Особое внимание обрати на пары, которые идут подряд по одному предмету, с разницей в 10-20 минут, если они есть. Отметь, что это может быть как плюсом, так и минусом для усвоения материала.
+•   Обрати внимание на перемещение между корпусами. Укажи, если есть такие перемещения, и на то, что нужно учитывать время на дорогу.
+•   Определи, есть ли какие-либо особенности в распределении типов занятий (например, все лабораторные утром, а лекции вечером).
+•   Отметь, если есть разрывы между занятиями, которые можно использовать для отдыха или самостоятельной работы.
+
+*Рекомендации (основанные на анализе расписания):*
+
+•   Дай практические советы по подготовке к конкретным типам занятий (например, заранее повторить теорию для лабораторных, подготовиться к практическим заданиям).
+•   Дай советы по управлению временем с учетом перемещений между корпусами.
+•   Предложи способы оптимизации дня (например, использовать разрывы между занятиями с пользой, приносить с собой воду и перекус).
+•   Дай общие советы по поддержанию продуктивности в течение дня.
+
+В анализе используй краткие, четкие и понятные формулировки, избегай сложных и пространных выражений.
+Направь анализ таким образом, чтобы он был максимально полезен и практичен для студента, который будет это читать.
+"""
 
 async def _render_schedule(message: Message, user_id: int, state: FSMContext, notifyer: NotificationManager, update: bool = False) -> None:
     """
@@ -172,16 +215,19 @@ async def _render_group_schedule(message: Message, user_id: int, state: FSMConte
 
 
     subscribed = data.get('schedule').group_name in await notifyer.get_subscribed(user_id)
+    name = f"{data['schedule'].group_name if data['type'] == 'group' else data['schedule'].person_name}"
+    link = await create_start_link(message.bot, name, encode=True)
+
     if not update:
         await message.answer(
             "\n".join(responses),
-            reply_markup=schedule_pagination_keyboard(current_tab, current_week_index, current_day_index, num_max_days, 'group', subscribed),
+            reply_markup=schedule_pagination_keyboard(current_tab, current_week_index, current_day_index, num_max_days, 'group', subscribed, link),
             parse_mode=ParseMode.HTML, link_preview_options=LinkPreviewOptions(is_disabled=True)
         )
     else:
         await message.edit_text(
             "\n".join(responses),
-            reply_markup=schedule_pagination_keyboard(current_tab, current_week_index, current_day_index, num_max_days, 'group', subscribed),
+            reply_markup=schedule_pagination_keyboard(current_tab, current_week_index, current_day_index, num_max_days, 'group', subscribed, link),
             parse_mode=ParseMode.HTML, link_preview_options=LinkPreviewOptions(is_disabled=True)
         )
 
@@ -328,16 +374,18 @@ async def _render_professor_schedule(message: Message, user_id: int, state: FSMC
         responses.append("Расписание занятий отсутствует")
 
     subscribed = data.get('schedule').person_name in await notifyer.get_subscribed(user_id)
+    name = f"{data['schedule'].group_name if data['type'] == 'group' else data['schedule'].person_name}"
+    link = await create_start_link(message.bot, name, encode=True)
     if not update:
         await message.answer(
             "\n".join(responses),
-            reply_markup=schedule_pagination_keyboard(current_tab, current_week_index, current_day_index, num_max_days, 'professor', subscribed),
+            reply_markup=schedule_pagination_keyboard(current_tab, current_week_index, current_day_index, num_max_days, 'professor', subscribed, link),
             parse_mode=ParseMode.HTML, link_preview_options=LinkPreviewOptions(is_disabled=True)
         )
     else:
         await message.edit_text(
             "\n".join(responses),
-            reply_markup=schedule_pagination_keyboard(current_tab, current_week_index, current_day_index, num_max_days, 'professor', subscribed),
+            reply_markup=schedule_pagination_keyboard(current_tab, current_week_index, current_day_index, num_max_days, 'professor', subscribed, link),
             parse_mode=ParseMode.HTML, link_preview_options=LinkPreviewOptions(is_disabled=True)
         )
 
@@ -462,6 +510,104 @@ async def process_callback(callback: CallbackQuery, state: FSMContext, notifyer:
 
             logger.info(f"User {callback.from_user.id} {'unsubscribed from' if is_subscribed else 'subscribed to'} {schedule_id}")
             no_rerender = False # need to rerender keyboard
+
+        elif action == 'ai_summary':
+            async with ChatActionSender.typing(bot=callback.message.bot, chat_id=callback.message.chat.id):
+                no_rerender = True
+                schedule = data['schedule']
+                current_tab = data['current_tab']
+
+                # Prepare schedule text based on current tab and view
+                schedule_text = ""
+                if current_tab == 'basic' and schedule.weeks:
+                    week = schedule.weeks[data['current_week_index'] - 1]
+                    day = week.days[data['current_day_index'] - 1]
+
+                    schedule_text = f"{day.day_name} - {week.week_number} Неделя\n\n"
+                    for lesson in day.lessons:
+                        if data['type'] == 'group':
+                            professor_text = f"{lesson.professor}\n" if hasattr(lesson, 'professor') else ""
+                            schedule_text += (
+                                f"{lesson.name}\n"
+                                f"{lesson.time} | {lesson.type if lesson.type else ''}\n"
+                                f"{lesson.place}\n"
+                                f"{professor_text}\n"
+                            )
+                        else:  # professor schedule
+                            groups = lesson.groups if isinstance(lesson.groups, list) else [lesson.groups]
+                            schedule_text += (
+                                f"{lesson.name}\n"
+                                f"{lesson.time} | {lesson.type if lesson.type else ''}\n"
+                                f"{lesson.place}\n"
+                                f"{', '.join(groups)}\n\n"
+                            )
+                elif current_tab == 'session' and schedule.session:
+                    schedule_text = "Расписание сессии:\n\n"
+                    for day in schedule.session.days:
+                        schedule_text += f"{day.day_name}:\n"
+                        for lesson in day.lessons:
+                            professor_text = f"{lesson.professor}\n" if hasattr(lesson, 'professor') else ""
+                            schedule_text += (
+                                f"{lesson.name}\n"
+                                f"{lesson.time} | {lesson.type if lesson.type else ''}\n"
+                                f"{lesson.place}\n"
+                                f"{professor_text}\n"
+                            )
+                elif current_tab == 'consultations' and hasattr(schedule, 'consultations') and schedule.consultations:
+                    schedule_text = "Расписание консультаций:\n\n"
+                    for day in schedule.consultations.days:
+                        schedule_text += f"{day.day_name}:\n"
+                        for lesson in day.lessons:
+                            groups = lesson.groups if isinstance(lesson.groups, list) else [lesson.groups]
+                            schedule_text += (
+                                f"{lesson.name}\n"
+                                f"{lesson.time} | {lesson.type if lesson.type else ''}\n"
+                                f"{lesson.place}\n"
+                                f"{', '.join(groups)}\n\n"
+                            )
+
+                if not schedule_text:
+                    await callback.message.answer("Нет данных для анализа")
+                    return
+
+                response = g4f.ChatCompletion.create(
+                    model=g4f.models.gpt_4,
+                    provider=g4f.Provider.Yqcloud,
+                    messages=[{"role": "user", "content": request_template.format(schedule=schedule_text)}],
+                    stream=True,
+                )
+                msg = None
+                response_text = ""
+                chunk = ""
+                chunk_size = 100  # Update every ~100 characters
+
+                for message in response:
+                    if isinstance(message, str):
+                        chunk += message
+                        response_text += message
+
+                        # Only update when we have a substantial chunk of text
+                        if len(chunk) >= chunk_size:
+                            try:
+                                if msg is None:
+                                    msg = await callback.message.answer(response_text, parse_mode=ParseMode.MARKDOWN)
+                                else:
+                                    await msg.edit_text(response_text, parse_mode=ParseMode.MARKDOWN)
+                                chunk = ""  # Reset chunk after successful update
+                            except Exception as e:
+                                logger.debug(f"Failed to update message: {e}")
+                                continue
+
+                # Final update to ensure we show the complete message
+                if response_text:
+                    try:
+                        if msg is None:
+                            msg = await callback.message.answer(response_text, parse_mode=ParseMode.MARKDOWN)
+                        else:
+                            await msg.edit_text(response_text, parse_mode=ParseMode.MARKDOWN)
+                    except Exception as e:
+                        logger.debug(f"Failed to update final message: {e}")
+
 
         await state.update_data(data)
 
@@ -640,14 +786,20 @@ async def process_cmd_help(message: Message) -> None:
         '• Переключение недель (Левый свитч х/2)\n'
         '• Переключение между днями недели (Стрелки влево/вправо)\n'
         '• Кнопка открытия сегодняшнего дня (Свитч между стрелками x/x)\n'
-        '• Отслеживание изменений (Кнопка Отслеживать 🔔)\n\n'
-        '3. Функция отслеживания:\n'
-        '• Нажмите на кнопку Отслеживать🔔 чтобы включить уведомления\n'
+        '• Отслеживание изменений (Кнопка 🔔)\n'
+        '• AI-анализ расписания (Кнопка 📊)\n'
+        '• Скопировать ссылку на расписание (Кнопка 🔁)\n\n'
+        '3. Функция отслеживания (beta):\n'
+        '• Нажмите на кнопку Отслеживать 🔔 чтобы включить уведомления\n'
         '• Получайте уведомления об изменениях в расписании (основное, консультации, сессия)\n'
         '• Отслеживайте несколько групп или преподавателей одновременно\n\n'
-        '4. Быстрая навигация:\n'
+        '4. AI-функции (alpha):\n'
+        '• Нажмите на кнопку AI Анализ 📊 для анализа расписания\n'
+        '• Получите краткую сводку по расписанию\n'
+        '• AI поможет выделить важные моменты и особенности расписания\n\n'
+        '5. Быстрая навигация:\n'
         '• Нажимайте на названия групп в расписании преподавателя\n'
-        '• Нажимайте на имена преподавателей в расписании группы\n\n'
+        '• Нажимайте на имена преподавателей в расписании группы\n'
         '• Ссылку можно сохранить, чтобы кликом открывать расписание\n\n'
         'Бот стремится автоматически показать текущий или ближайший следующий день при открытии расписания.\n\n'
     )
