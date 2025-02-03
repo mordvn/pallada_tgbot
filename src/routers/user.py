@@ -512,6 +512,20 @@ async def process_callback(callback: CallbackQuery, state: FSMContext, notifyer:
             no_rerender = False # need to rerender keyboard
 
         elif action == 'ai_summary':
+            # Check if enough time has passed since last request
+            last_request_time = data.get('ai_request_delay')
+            current_time = datetime.now()
+
+            if last_request_time:
+                time_diff = (current_time - last_request_time).total_seconds()
+                if time_diff < 20:  # 20 seconds cooldown
+                    await callback.answer(f"Подождите {int(20 - time_diff)} секунд перед следующим анализом", show_alert=True)
+                    return
+
+            # Update last request time
+            data['ai_request_delay'] = current_time
+            await state.update_data(data)
+
             async with ChatActionSender.typing(bot=callback.message.bot, chat_id=callback.message.chat.id):
                 no_rerender = True
                 schedule = data['schedule']
@@ -611,10 +625,13 @@ async def process_callback(callback: CallbackQuery, state: FSMContext, notifyer:
 
         await state.update_data(data)
 
-        if answer != "":
-            await callback.answer(answer, show_alert=True)
-        else:
-            await callback.answer()
+        try:
+            if answer != "":
+                await callback.answer(answer, show_alert=True)
+            else:
+                await callback.answer()
+        except Exception:
+            pass
 
         if not no_rerender:
             await _render_schedule(callback.message, callback.from_user.id, state, notifyer=notifyer, update=True)

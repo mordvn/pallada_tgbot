@@ -59,7 +59,7 @@ def help_keyboard() -> InlineKeyboardMarkup:
     pattern = [1, 2]  # Вертикально кнопочки
 
     builder.button(text='Задонатить ☕️', url='https://pay.cloudtips.ru/p/190e1668')
-    builder.button(text='👨‍💻 Разработчик', url='https://t.me/jahagafagshsjaavv')
-    builder.button(text='📂 Код проекта', url='https://github.com/unknown81d/pallada_tgbot')
+    builder.button(text='Разработчик', url='https://t.me/jahagafagshsjaavv')
+    builder.button(text='Код проекта', url='https://github.com/unknown81d/pallada_tgbot')
 
     return builder.adjust(*pattern).as_markup()
