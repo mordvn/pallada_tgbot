@@ -11,7 +11,7 @@ A Telegram bot for accessing and tracking class schedules at Siberian State Univ
 </div>
 <div align="center" style="display: flex; justify-content: space-between;">
   <img src="images/3.jpg" width="250" alt="AI Support"/>
-  <img src="images/4.jpg" width="350" alt="Google Calendar Export"/>
+  <img src="images/4.jpg" width="400" alt="Google Calendar Export"/>
 </div>
 
 ## Features ✨
