@@ -49,7 +49,7 @@ TIME_TO_EMOJI = {
 }
 
 request_template = """
-Ты - помощник для студентов, анализирующий расписание занятий и дающий полезные рекомендации.
+Ты - помощник для студентов и преподавателей, анализирующий расписание занятий и дающий полезные рекомендации.
 
 Вот расписание занятий на день, представленное в формате:
 
@@ -57,7 +57,7 @@ request_template = """
 <Название предмета>
 <Номер пары> <Время начала> - <Время окончания> | <Тип занятия>
 <Место проведения>
-<ФИО преподавателя>
+<ФИО преподавателя>/<Группы>
 
 {schedule}
 
@@ -65,15 +65,13 @@ request_template = """
 
 *Общий анализ:*
 
-•   День недели и номер недели.
-•   Количество пар.
-•   Количество предметов.
+•   Количество пар. / Количество предметов.
 •   Типы занятий (лекции, лабораторные, практики).
-•   Общее описание загрузки (насколько насыщенный день).
+•   Общее описание загрузки (насколько насыщенный день) + "Цвет дня (3 эмодзи нужного цвета по теме пар)" (4 и больше пар это красный цвет, 3 пары это оранжевый, 2 пары это желтый, 1 пара это зеленый)
 
 *Ключевые моменты:*
 
-•   Особое внимание обрати на пары, которые идут подряд по одному предмету, с разницей в 10-20 минут, если они есть. Отметь, что это может быть как плюсом, так и минусом для усвоения материала.
+•   Особое внимание обрати на пары, которые идут подряд по одному предмету, с разницей в 10-20 минут, если они есть. Отметь, что это может быть как плюсом, так и минусом
 •   Обрати внимание на перемещение между корпусами. Укажи, если есть такие перемещения, и на то, что нужно учитывать время на дорогу.
 •   Определи, есть ли какие-либо особенности в распределении типов занятий (например, все лабораторные утром, а лекции вечером).
 •   Отметь, если есть разрывы между занятиями, которые можно использовать для отдыха или самостоятельной работы.
@@ -86,7 +84,8 @@ request_template = """
 •   Дай общие советы по поддержанию продуктивности в течение дня.
 
 В анализе используй краткие, четкие и понятные формулировки, избегай сложных и пространных выражений.
-Направь анализ таким образом, чтобы он был максимально полезен и практичен для студента, который будет это читать.
+Направь анализ таким образом, чтобы он был максимально полезен и практичен для студента при это не душным, который будет это читать
+Используй эмоджи. (например цифры кубиками)
 """
 
 async def _render_schedule(message: Message, user_id: int, state: FSMContext, notifyer: NotificationManager, update: bool = False) -> None:
@@ -518,8 +517,8 @@ async def process_callback(callback: CallbackQuery, state: FSMContext, notifyer:
 
             if last_request_time:
                 time_diff = (current_time - last_request_time).total_seconds()
-                if time_diff < 20:  # 20 seconds cooldown
-                    await callback.answer(f"Подождите {int(20 - time_diff)} секунд перед следующим анализом", show_alert=True)
+                if time_diff < 40:  # 20 seconds cooldown
+                    await callback.answer(f"Подождите {int(40 - time_diff)} секунд перед следующим анализом", show_alert=True)
                     return
 
             # Update last request time
@@ -580,9 +579,9 @@ async def process_callback(callback: CallbackQuery, state: FSMContext, notifyer:
                                 f"{', '.join(groups)}\n\n"
                             )
 
-                if not schedule_text:
-                    await callback.message.answer("Нет данных для анализа")
-                    return
+                # if not schedule_text:
+                #     await callback.message.answer("Нет данных для анализа")
+                #     return
 
                 response = g4f.ChatCompletion.create(
                     model=g4f.models.gpt_4,
@@ -621,6 +620,9 @@ async def process_callback(callback: CallbackQuery, state: FSMContext, notifyer:
                             await msg.edit_text(response_text, parse_mode=ParseMode.MARKDOWN)
                     except Exception as e:
                         logger.debug(f"Failed to update final message: {e}")
+
+        elif action == 'get_calendar':
+            await callback.message.answer("Экспорт в календарь появится в ближайшем апдейте")
 
 
         await state.update_data(data)
@@ -770,6 +772,11 @@ async def _process_text(search_query: str, message: Message, search_results: Sea
         except Exception as e:
             logger.error(f"Error processing schedule for query '{search_query}': {e}")
             await message.answer('Не удалось получить расписание')
+
+@user_router.callback_query(F.data)
+async def process_callback(callback: CallbackQuery, state: FSMContext):
+    """Handle callback queries"""
+    await callback.answer()
 
 @user_router.message(CommandStart(deep_link=True))
 @user_router.message(CommandStart())
