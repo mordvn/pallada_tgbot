@@ -88,6 +88,8 @@ request_template = """
 Используй эмоджи. (например цифры кубиками)
 """
 
+MAPS_SEARCH_TEMPLATE = "https://2gis.ru/krasnoyarsk/search/{query}"
+
 async def _render_schedule(message: Message, user_id: int, state: FSMContext, notifyer: NotificationManager, update: bool = False) -> None:
     """
     Unified render function for both group and professor schedules.
@@ -177,7 +179,7 @@ async def _render_group_schedule(message: Message, user_id: int, state: FSMConte
             lesson_text = [
                 f"{lesson.name.capitalize()}",
                 f"<b>{TIME_TO_EMOJI.get(lesson.time.split('-')[0].strip(), '')} {lesson.time}</b>{lesson_type_text}{lesson_subgroup_text}",
-                f"{lesson.place.split(' / ')[1]}",
+                f"{lesson.place.split(' / ')[1]} <a href='{MAPS_SEARCH_TEMPLATE.format(query=lesson.place.split(' / ')[0])}'>📍</a>",
                 f"<a href='{await create_start_link(bot = message.bot, payload=lesson.professor, encode=True)}'>{lesson.professor}</a>",
             ]
             responses.append("\n".join(lesson_text) + "\n")
@@ -205,7 +207,7 @@ async def _render_group_schedule(message: Message, user_id: int, state: FSMConte
                 lesson_text = [
                     f"{lesson.name.capitalize()}",
                     f"<b>{lesson.time}</b>{lesson_type_text}{lesson_subgroup_text}",
-                    f"{lesson.place.split(' / ')[1]}",
+                    f"{lesson.place.split(' / ')[1]} <a href='{MAPS_SEARCH_TEMPLATE.format(query=lesson.place.split(' / ')[0])}'>📍</a>",
                     f"<a href='{await create_start_link(bot = message.bot, payload=lesson.professor, encode=True)}'>{lesson.professor}</a>",
                 ]
                 responses.append("\n".join(lesson_text) + "\n")
@@ -297,7 +299,7 @@ async def _render_professor_schedule(message: Message, user_id: int, state: FSMC
             responses.append(
                 f"{lesson.name.capitalize()}\n"
                 f"<b>{TIME_TO_EMOJI.get(lesson.time.split('-')[0].strip(), '')} {lesson.time}</b>{lesson_type_text}{lesson_subgroup_text}\n"
-                f"{lesson.place.split(' / ')[1]}\n"
+                f"{lesson.place.split(' / ')[1]} <a href='{MAPS_SEARCH_TEMPLATE.format(query=lesson.place.split(' / ')[0])}'>📍</a>\n"
                 f"{', '.join(group_links)}\n"
             )
 
@@ -331,7 +333,7 @@ async def _render_professor_schedule(message: Message, user_id: int, state: FSMC
                 responses.append(
                     f"{lesson.name.capitalize()}\n"
                     f"<b>{lesson.time}</b>{lesson_type_text}{lesson_subgroup_text}\n"
-                    f"{lesson.place.split(' / ')[1]}\n"
+                    f"{lesson.place.split(' / ')[1]} <a href='{MAPS_SEARCH_TEMPLATE.format(query=lesson.place.split(' / ')[0])}'>📍</a>\n"
                     f"{', '.join(group_links)}\n"
                 )
 
@@ -366,7 +368,7 @@ async def _render_professor_schedule(message: Message, user_id: int, state: FSMC
                 responses.append(
                     f"{lesson.name.capitalize()}\n"
                     f"<b>{lesson.time}</b>{lesson_type_text}{lesson_subgroup_text}\n"
-                    f"{lesson.place.split(' / ')[1]}\n"
+                    f"{lesson.place.split(' / ')[1]} <a href='{MAPS_SEARCH_TEMPLATE.format(query=lesson.place.split(' / ')[0])}'>📍</a>\n"
                     f"{', '.join(group_links)}\n"
                 )
     else:
@@ -517,8 +519,9 @@ async def process_callback(callback: CallbackQuery, state: FSMContext, notifyer:
 
             if last_request_time:
                 time_diff = (current_time - last_request_time).total_seconds()
-                if time_diff < 40:  # 20 seconds cooldown
-                    await callback.answer(f"Подождите {int(40 - time_diff)} секунд перед следующим анализом", show_alert=True)
+                TIMEOUT = 20
+                if time_diff < TIMEOUT:  # 20 seconds cooldown
+                    await callback.answer(f"Подождите {int(TIMEOUT - time_diff)} секунд перед следующим анализом", show_alert=True)
                     return
 
             # Update last request time
@@ -809,8 +812,9 @@ async def process_cmd_help(message: Message) -> None:
         '• Переключение между вкладками (Основное/Сессия/Консультации)\n'
         '• Переключение недель (Левый свитч х/2)\n'
         '• Переключение между днями недели (Стрелки влево/вправо)\n'
-        '• Кнопка открытия сегодняшнего дня (Свитч между стрелками x/x)\n'
+        '• Кнопка открытия сегодняшнего дня (Кнопка между стрелками x/x)\n'
         '• Отслеживание изменений (Кнопка 🔔)\n'
+        '• Получение ссылки на Google-календарь (Кнопка 📅)\n'
         '• AI-анализ расписания (Кнопка 📊)\n'
         '• Скопировать ссылку на расписание (Кнопка 🔁)\n\n'
         '3. Функция отслеживания (beta):\n'
@@ -826,6 +830,7 @@ async def process_cmd_help(message: Message) -> None:
         '5. Быстрая навигация:\n'
         '• Нажимайте на названия групп в расписании преподавателя\n'
         '• Нажимайте на имена преподавателей в расписании группы\n'
+        '• Нажимайте на 📍 чтобы открыть местоположение в 2GIS\n'
         '• Ссылку можно сохранить, чтобы кликом открывать расписание\n\n'
         'Бот стремится автоматически показать текущий или ближайший следующий день при открытии расписания.\n\n'
     )
