@@ -79,5 +79,66 @@ class TestSibGUChatbot(unittest.TestCase):
         )
         return response
 
-if __name__ == '__main__':
-    unittest.main()
+#if __name__ == '__main__':
+    #unittest.main()
+
+
+from gcsa.event import Event
+from gcsa.google_calendar import GoogleCalendar
+from gcsa.recurrence import Recurrence, DAILY, SU, SA, WEEKLY
+from gcsa.calendar import Calendar
+from beautiful_date import Apr, hours, Feb
+from gcsa.event import Event
+from gcsa.event import Event
+from gcsa.serializers.event_serializer import EventSerializer
+from gcsa.serializers.calendar_serializer import CalendarSerializer
+from gcsa.serializers.acl_rule_serializer import ACLRuleSerializer
+from gcsa.acl import AccessControlRule, ACLRole, ACLScopeType
+from datetime import datetime
+from beautiful_date import Jan, Apr
+
+gc = GoogleCalendar(credentials_path='.credentials/credentials.json', authentication_flow_port=8000)
+
+settings = gc.get_settings()
+settings.format24_hour_time = True
+settings.locale = 'ru'
+settings.timezone = 'Asia/Krasnoyarsk'
+
+group_calendar = None
+for calendar in gc.get_calendar_list():
+    if calendar.summary == 'БПИ23-01':
+        group_calendar = calendar
+if group_calendar is None:
+    calendar = Calendar(
+        'БПИ23-01',
+        description='Расписание БПИ23-01'
+    )
+    group_calendar = gc.add_calendar(calendar)
+
+for event in gc.get_events(calendar_id=group_calendar.id):
+    gc.delete_event(event, calendar_id=group_calendar.id)
+
+r = Recurrence.rule(freq=WEEKLY, interval=2)
+start = datetime(year=2025, month=2, day=5, hour=6, minute=30)
+
+end = start + 2 * hours
+event = Event('Meeting',
+              start=start,
+              end=end,
+              description='Test event',
+              location='Test location',
+              recurrence=r)
+
+event = gc.add_event(event, calendar_id=group_calendar.id)
+
+
+rule = AccessControlRule(
+    role=ACLRole.READER,
+    scope_type=ACLScopeType.DEFAULT
+)
+rule = gc.add_acl_rule(rule, calendar_id=group_calendar.id)
+
+
+print("")
+print(f"https://calendar.google.com/calendar/u/0/r?cid={group_calendar.id}")
+print("")

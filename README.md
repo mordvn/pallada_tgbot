@@ -21,6 +21,7 @@ A Telegram bot for accessing and tracking class schedules at Siberian State Univ
 - 📱 User-friendly interface
 - 🔗 Quick navigation between related schedules
 - 📊 Support for regular classes, exam sessions, and consultations
+- 📲 Export schedule to Google Calendar
 
 ## AI Features 🧠
 
@@ -66,6 +67,16 @@ poetry run python src/__init__.py
 3. Navigate through the schedule using the inline keyboard
 4. Enable notifications to stay updated about schedule changes
 5. Use the AI analysis button (📊) to get smart insights about your schedule
+
+### Google Calendar Export 📲
+
+1. Open your schedule in the bot
+2. Click the "Export to Calendar" button
+3. Follow the link to add events to your Google Calendar
+4. Your schedule will be synced with Google Calendar, including:
+   - Class times and locations
+   - Professor names and subjects
+   - Automatic updates when schedule changes
 
 ## Contributing 🤝
 

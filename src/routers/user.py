@@ -16,12 +16,21 @@ from aiogram.utils.deep_linking import decode_payload, create_start_link
 from aiogram.enums import ParseMode
 from aiogram.types import LinkPreviewOptions
 import g4f
+from gcsa.event import Event
+from gcsa.google_calendar import GoogleCalendar
+from gcsa.recurrence import Recurrence, WEEKLY
+from gcsa.calendar import Calendar
+from gcsa.acl import AccessControlRule, ACLRole, ACLScopeType
 
 from states import UserStates
 from keyboards import schedule_pagination_keyboard, help_keyboard
 from services.notification_processor import NotificationManager
 from services.search_results import SearchResultList
 from services.parsers import group_parser, professor_parser
+
+import asyncio
+from functools import partial
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +98,12 @@ request_template = """
 """
 
 MAPS_SEARCH_TEMPLATE = "https://2gis.ru/krasnoyarsk/search/{query}"
+
+# Add this near other constants at the top
+GOOGLE_CALENDAR_CREDS_PATH = '.credentials/credentials.json'
+
+# Add near other global variables
+calendar_locks = defaultdict(lambda: None)  # Global dictionary to track calendar creation locks
 
 async def _render_schedule(message: Message, user_id: int, state: FSMContext, notifyer: NotificationManager, update: bool = False) -> None:
     """
@@ -625,8 +640,67 @@ async def process_callback(callback: CallbackQuery, state: FSMContext, notifyer:
                         logger.debug(f"Failed to update final message: {e}")
 
         elif action == 'get_calendar':
-            await callback.message.answer("Экспорт в календарь появится в ближайшем апдейте")
 
+            # Check if enough time has passed since last calendar request
+            calendar_request_time = data.get('calendar_request_delay')
+            current_time = datetime.now()
+            CALENDAR_TIMEOUT = 300  # 5 min seconds cooldown
+            CALENDAR_LOCK_TIMEOUT = 300  # 5 min seconds lock timeout
+
+            if calendar_request_time:
+                time_diff = (current_time - calendar_request_time).total_seconds()
+                if time_diff < CALENDAR_TIMEOUT:
+                    await callback.answer(
+                        f"Подождите {int(CALENDAR_TIMEOUT - time_diff)} секунд перед следующим созданием календаря",
+                        show_alert=True
+                    )
+                    return
+
+            # Update last calendar request time
+            data['calendar_request_delay'] = current_time
+            await state.update_data(data)
+
+            schedule = data['schedule']
+            calendar_name = schedule.group_name if data['type'] == 'group' else schedule.person_name
+
+            # Check global calendar lock
+            if calendar_locks[calendar_name]:
+                lock_time = calendar_locks[calendar_name]
+                if (current_time - lock_time).total_seconds() < CALENDAR_LOCK_TIMEOUT:
+                    await callback.answer(
+                        "Календарь уже создается другим пользователем. Пожалуйста, подождите минуту и попробуйте снова.",
+                        show_alert=True
+                    )
+                    return
+
+            # Set global lock for this calendar
+            calendar_locks[calendar_name] = current_time
+
+            no_rerender = True
+            await callback.answer()
+
+            async with ChatActionSender.typing(bot=callback.message.bot, chat_id=callback.message.chat.id):
+                try:
+                    target_calendar = await _create_google_calendar(calendar_name, schedule, data['type'])
+
+                    # Get shareable link
+                    calendar_link = f"https://calendar.google.com/calendar/u/0/r?cid={target_calendar.id}"
+
+                    await callback.message.answer(
+                        f"Ссылка на календарь: {calendar_link}\n\n"
+                        "Инструкция:\n"
+                        "1. Откройте ссылку\n"
+                        "2. Нажмите '+ Добавить календарь'\n"
+                        "3. Календарь появится в вашем списке\n\n"
+                        "Чтобы обновить календарь, нажмите на значок календаря 📅 еще раз"
+                    )
+
+                except Exception as e:
+                    logger.error(f"Error creating calendar: {e}", exc_info=True)
+                    await callback.message.answer("Не удалось создать календарь. Попробуйте позже.")
+                finally:
+                    # Clear the lock when done
+                    calendar_locks[calendar_name] = None
 
         await state.update_data(data)
 
@@ -822,12 +896,18 @@ async def process_cmd_help(message: Message) -> None:
         '• Получайте уведомления об изменениях в расписании\n'
         '• Отслеживание работает для всех вкладок (основное, консультации, сессия) и всех дней\n'
         '• Отслеживайте несколько групп или преподавателей одновременно\n\n'
-        '4. AI-функции (alpha):\n'
+        '4. AI-функции (beta):\n'
         '• Нажмите на кнопку AI Анализ 📊 для анализа расписания\n'
         '• Получите краткую сводку по расписанию\n'
         '• AI анализирует только текущую открытую вкладку и день\n'
         '• AI поможет выделить важные моменты и особенности расписания\n\n'
-        '5. Быстрая навигация:\n'
+        '5. Google Календарь (alpha):\n'
+        '• Нажмите на кнопку 📅 для экспорта расписания\n'
+        '• Получите ссылку на календарь с вашим расписанием\n'
+        '• Календарь автоматически обновляется при изменениях\n'
+        '• Синхронизируйте с телефоном или компьютером\n'
+        '• Доступны напоминания о парах\n\n'
+        '6. Быстрая навигация:\n'
         '• Нажимайте на названия групп в расписании преподавателя\n'
         '• Нажимайте на имена преподавателей в расписании группы\n'
         '• Нажимайте на 📍 чтобы открыть местоположение в 2GIS\n'
@@ -840,3 +920,122 @@ async def process_cmd_help(message: Message) -> None:
 async def process_text(message: Message, search_results: SearchResultList, notifyer: NotificationManager, state: FSMContext):
     """Handle text input"""
     await _process_text(message.text, message, search_results, notifyer, state)
+
+async def run_in_executor(func, *args, **kwargs):
+    """Helper function to run blocking code in executor."""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, partial(func, *args, **kwargs))
+
+async def _create_google_calendar(calendar_name, schedule, schedule_type):
+    """Asynchronous wrapper for Google Calendar operations."""
+    # Initialize Google Calendar
+    gc = await run_in_executor(GoogleCalendar, credentials_path=GOOGLE_CALENDAR_CREDS_PATH, authentication_flow_port=8000)
+
+    # Set calendar settings
+    settings = await run_in_executor(gc.get_settings)
+    settings.format24_hour_time = True
+    settings.locale = 'ru'
+    settings.timezone = 'Asia/Krasnoyarsk'
+
+    # Find or create calendar
+    calendars = await run_in_executor(gc.get_calendar_list)
+    target_calendar = None
+    for calendar in calendars:
+        if calendar.summary == calendar_name:
+            target_calendar = calendar
+            break
+
+    if target_calendar is None:
+        calendar = Calendar(
+            calendar_name,
+            description=f'Расписание {calendar_name}'
+        )
+        target_calendar = await run_in_executor(gc.add_calendar, calendar)
+        logger.info(f"Created new calendar: {calendar_name}")
+    else:
+        logger.info(f"Using existing calendar: {calendar_name}")
+
+    # Clear existing events
+    events = await run_in_executor(gc.get_events, calendar_id=target_calendar.id)
+    for event in events:
+        await run_in_executor(gc.delete_event, event, calendar_id=target_calendar.id)
+    logger.info("Cleared existing events")
+
+    # Add regular schedule events
+    if schedule.weeks:
+        for week_idx, week in enumerate(schedule.weeks, 1):
+            for day in week.days:
+                for lesson in day.lessons:
+                    # Parse time with fallback for single time format
+                    if '-' in lesson.time:
+                        time_start, time_end = lesson.time.split('-')
+                    else:
+                        time_start = lesson.time
+                        # Calculate end time by adding 1h 40min to start time
+                        start_hour, start_minute = map(int, time_start.strip().split(':'))
+                        end_minutes = (start_hour * 60 + start_minute + 100) # Add 100 minutes (1h 40min)
+                        time_end = f"{end_minutes // 60:02d}:{end_minutes % 60:02d}"
+
+                    hour_start, minute_start = map(int, time_start.strip().split(':'))
+                    hour_end, minute_end = map(int, time_end.strip().split(':'))
+
+                    # Get first occurrence date
+                    current_date = datetime.now()
+                    days_until = (list(DAYS_OF_WEEK.keys())[list(DAYS_OF_WEEK.values()).index(day.day_name)] - current_date.weekday()) % 7
+
+                    # Adjust first date based on week number
+                    first_date = current_date + timedelta(days=days_until)
+                    if week_idx == 2:  # For odd week
+                        if first_date.isocalendar()[1] % 2 == 0:  # If current week is even
+                            first_date += timedelta(days=7)  # Move to next week
+                    else:  # For even week
+                        if first_date.isocalendar()[1] % 2 == 1:  # If current week is odd
+                            first_date += timedelta(days=7)  # Move to next week
+
+                    # Create event start/end times
+                    event_start = first_date.replace(hour=hour_start, minute=minute_start, microsecond=0)
+                    event_end = first_date.replace(hour=hour_end, minute=minute_end, microsecond=0)
+
+                    # Determine semester dates based on current date
+                    current_date = datetime.now()
+                    if 9 <= current_date.month <= 12:  # First semester
+                        semester_start = datetime(current_date.year, 9, 1)
+                        semester_end = datetime(current_date.year, 12, 30)
+                    else:  # Second semester
+                        semester_start = datetime(current_date.year, 2, 10)
+                        semester_end = datetime(current_date.year, 5, 31)
+
+                    # Create recurrence rule (every 2 weeks) with until date
+                    recurrence = Recurrence.rule(
+                        freq=WEEKLY,
+                        interval=2,
+                        until=semester_end
+                    )
+
+                    # Create event
+                    description = f"Тип: {lesson.type if lesson.type else 'Не указан'}\n"
+                    if schedule_type == 'group':
+                        description += f"Преподаватель: {lesson.professor}\n"
+                    else:
+                        groups = lesson.groups if isinstance(lesson.groups, list) else [lesson.groups]
+                        description += f"Группы: {', '.join(groups)}\n"
+
+                    event = Event(
+                        lesson.name.capitalize(),
+                        start=event_start,
+                        end=event_end,
+                        description=description,
+                        location=lesson.place.split(' / ')[1],
+                        recurrence=recurrence
+                    )
+                    await run_in_executor(gc.add_event, event, calendar_id=target_calendar.id)
+                    logger.info(f"Added event: {lesson.name} on {day.day_name} at {lesson.time} (Week {week_idx})")
+
+    # Make calendar public
+    rule = AccessControlRule(
+        role=ACLRole.READER,
+        scope_type=ACLScopeType.DEFAULT
+    )
+    await run_in_executor(gc.add_acl_rule, rule, calendar_id=target_calendar.id)
+
+    return target_calendar
