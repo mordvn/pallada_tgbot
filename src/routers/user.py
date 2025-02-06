@@ -31,6 +31,7 @@ from services.parsers import group_parser, professor_parser
 import asyncio
 from functools import partial
 from collections import defaultdict
+import random
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +105,10 @@ GOOGLE_CALENDAR_CREDS_PATH = '.credentials/credentials.json'
 
 # Add near other global variables
 calendar_locks = defaultdict(lambda: None)  # Global dictionary to track calendar creation locks
+
+# Add these constants at the top with other constants
+PROGRESS_EMOJIS = ['🎓', '📚', '✏️', '📝', '📖', '🎯', '💡', '⭐️', '📊', '🔍', '📌', '📎', '🎨', '🎬', '🎮', '🎲']
+PROGRESS_BAR_LENGTH = 10
 
 async def _render_schedule(message: Message, user_id: int, state: FSMContext, notifyer: NotificationManager, update: bool = False) -> None:
     """
@@ -640,7 +645,6 @@ async def process_callback(callback: CallbackQuery, state: FSMContext, notifyer:
                         logger.debug(f"Failed to update final message: {e}")
 
         elif action == 'get_calendar':
-
             # Check if enough time has passed since last calendar request
             calendar_request_time = data.get('calendar_request_delay')
             current_time = datetime.now()
@@ -679,14 +683,20 @@ async def process_callback(callback: CallbackQuery, state: FSMContext, notifyer:
             no_rerender = True
             await callback.answer()
 
+            # Send initial progress message
+            progress_message = await callback.message.answer(
+                "Создание календаря...\n\n" + "⬜️" * PROGRESS_BAR_LENGTH + "\n\nПодготовка..."
+            )
+
             async with ChatActionSender.typing(bot=callback.message.bot, chat_id=callback.message.chat.id):
                 try:
-                    target_calendar = await _create_google_calendar(calendar_name, schedule, data['type'])
+                    target_calendar = await _create_google_calendar(calendar_name, schedule, data['type'], progress_message)
 
                     # Get shareable link
                     calendar_link = f"https://calendar.google.com/calendar/u/0/r?cid={target_calendar.id}"
 
-                    await callback.message.answer(
+                    await progress_message.edit_text(
+                        f"✅ Календарь успешно создан!\n\n"
                         f"Ссылка на календарь: {calendar_link}\n\n"
                         "Инструкция:\n"
                         "1. Откройте ссылку\n"
@@ -697,7 +707,7 @@ async def process_callback(callback: CallbackQuery, state: FSMContext, notifyer:
 
                 except Exception as e:
                     logger.error(f"Error creating calendar: {e}", exc_info=True)
-                    await callback.message.answer("Не удалось создать календарь. Попробуйте позже.")
+                    await progress_message.edit_text("❌ Не удалось создать календарь. Попробуйте позже.")
                 finally:
                     # Clear the lock when done
                     calendar_locks[calendar_name] = None
@@ -926,16 +936,26 @@ async def run_in_executor(func, *args, **kwargs):
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, partial(func, *args, **kwargs))
 
-async def _create_google_calendar(calendar_name, schedule, schedule_type):
+async def _create_google_calendar(calendar_name, schedule, schedule_type, progress_message):
     """Asynchronous wrapper for Google Calendar operations."""
     # Initialize Google Calendar
+
+    # Update progress
+    await _update_progress(progress_message, 0.1, "Инициализация календаря...")
+
     gc = await run_in_executor(GoogleCalendar, credentials_path=GOOGLE_CALENDAR_CREDS_PATH, authentication_flow_port=8000)
+
+
+    await _update_progress(progress_message, 0.2, "Настройка параметров...")
 
     # Set calendar settings
     settings = await run_in_executor(gc.get_settings)
     settings.format24_hour_time = True
     settings.locale = 'ru'
     settings.timezone = 'Asia/Krasnoyarsk'
+
+
+    await _update_progress(progress_message, 0.3, "Создание календаря...")
 
     # Find or create calendar
     calendars = await run_in_executor(gc.get_calendar_list)
@@ -955,64 +975,54 @@ async def _create_google_calendar(calendar_name, schedule, schedule_type):
     else:
         logger.info(f"Using existing calendar: {calendar_name}")
 
+
+    await _update_progress(progress_message, 0.5, "Очистка старых событий... ~30 секунд")
+
     # Clear existing events
     events = await run_in_executor(gc.get_events, calendar_id=target_calendar.id)
     for event in events:
         await run_in_executor(gc.delete_event, event, calendar_id=target_calendar.id)
     logger.info("Cleared existing events")
 
+
+    await _update_progress(progress_message, 0.7, "Добавление расписания... ~30 секунд")
+
     # Add regular schedule events
     if schedule.weeks:
+        # Determine semester dates
+        current_date = datetime.now()
+        if 9 <= current_date.month <= 12:  # First semester
+            semester_start = datetime(current_date.year, 9, 1)
+            semester_end = datetime(current_date.year, 12, 30)
+        else:  # Second semester
+            semester_start = datetime(current_date.year, 2, 10)
+            semester_end = datetime(current_date.year, 5, 31)
+
+        # Process each week's schedule
         for week_idx, week in enumerate(schedule.weeks, 1):
             for day in week.days:
-                for lesson in day.lessons:
-                    # Parse time with fallback for single time format
-                    if '-' in lesson.time:
-                        time_start, time_end = lesson.time.split('-')
-                    else:
-                        time_start = lesson.time
-                        # Calculate end time by adding 1h 40min to start time
-                        start_hour, start_minute = map(int, time_start.strip().split(':'))
-                        end_minutes = (start_hour * 60 + start_minute + 100) # Add 100 minutes (1h 40min)
-                        time_end = f"{end_minutes // 60:02d}:{end_minutes % 60:02d}"
+                # Get day of week index (0-6)
+                day_idx = list(DAYS_OF_WEEK.keys())[list(DAYS_OF_WEEK.values()).index(day.day_name)]
 
+                # Calculate first occurrence of this weekday in the semester
+                days_until = (day_idx - semester_start.weekday()) % 7
+                first_date = semester_start + timedelta(days=days_until)
+
+                # If this is second week's schedule, add 7 days
+                if week_idx != 2:
+                    first_date += timedelta(days=7)
+
+                for lesson in day.lessons:
+                    # Parse lesson time
+                    time_start, time_end = lesson.time.split('-')
                     hour_start, minute_start = map(int, time_start.strip().split(':'))
                     hour_end, minute_end = map(int, time_end.strip().split(':'))
 
-                    # Get first occurrence date
-                    current_date = datetime.now()
-                    days_until = (list(DAYS_OF_WEEK.keys())[list(DAYS_OF_WEEK.values()).index(day.day_name)] - current_date.weekday()) % 7
+                    # Set event times
+                    event_start = first_date.replace(hour=hour_start, minute=minute_start)
+                    event_end = first_date.replace(hour=hour_end, minute=minute_end)
 
-                    # Adjust first date based on week number
-                    first_date = current_date + timedelta(days=days_until)
-                    if week_idx == 2:  # For odd week
-                        if first_date.isocalendar()[1] % 2 == 0:  # If current week is even
-                            first_date += timedelta(days=7)  # Move to next week
-                    else:  # For even week
-                        if first_date.isocalendar()[1] % 2 == 1:  # If current week is odd
-                            first_date += timedelta(days=7)  # Move to next week
-
-                    # Create event start/end times
-                    event_start = first_date.replace(hour=hour_start, minute=minute_start, microsecond=0)
-                    event_end = first_date.replace(hour=hour_end, minute=minute_end, microsecond=0)
-
-                    # Determine semester dates based on current date
-                    current_date = datetime.now()
-                    if 9 <= current_date.month <= 12:  # First semester
-                        semester_start = datetime(current_date.year, 9, 1)
-                        semester_end = datetime(current_date.year, 12, 30)
-                    else:  # Second semester
-                        semester_start = datetime(current_date.year, 2, 10)
-                        semester_end = datetime(current_date.year, 5, 31)
-
-                    # Create recurrence rule (every 2 weeks) with until date
-                    recurrence = Recurrence.rule(
-                        freq=WEEKLY,
-                        interval=2,
-                        until=semester_end
-                    )
-
-                    # Create event
+                    # Create event description
                     description = f"Тип: {lesson.type if lesson.type else 'Не указан'}\n"
                     if schedule_type == 'group':
                         description += f"Преподаватель: {lesson.professor}\n"
@@ -1020,6 +1030,14 @@ async def _create_google_calendar(calendar_name, schedule, schedule_type):
                         groups = lesson.groups if isinstance(lesson.groups, list) else [lesson.groups]
                         description += f"Группы: {', '.join(groups)}\n"
 
+                    # Create recurrence rule (every 2 weeks)
+                    recurrence = Recurrence.rule(
+                        freq=WEEKLY,
+                        interval=2,
+                        until=semester_end
+                    )
+
+                    # Create and add event
                     event = Event(
                         lesson.name.capitalize(),
                         start=event_start,
@@ -1031,6 +1049,8 @@ async def _create_google_calendar(calendar_name, schedule, schedule_type):
                     await run_in_executor(gc.add_event, event, calendar_id=target_calendar.id)
                     logger.info(f"Added event: {lesson.name} on {day.day_name} at {lesson.time} (Week {week_idx})")
 
+    await _update_progress(progress_message, 1.0, "Готово!")
+
     # Make calendar public
     rule = AccessControlRule(
         role=ACLRole.READER,
@@ -1039,3 +1059,17 @@ async def _create_google_calendar(calendar_name, schedule, schedule_type):
     await run_in_executor(gc.add_acl_rule, rule, calendar_id=target_calendar.id)
 
     return target_calendar
+
+async def _update_progress(message, progress, status_text):
+    """Update progress bar message with random emojis."""
+    filled = int(progress * PROGRESS_BAR_LENGTH)
+    empty = PROGRESS_BAR_LENGTH - filled
+
+    # Generate progress bar with random emojis for filled portion
+    bar = ''
+    for _ in range(filled):
+        bar += random.choice(PROGRESS_EMOJIS)
+    bar += '⬜️' * empty
+
+    text = f"[{bar}]\n{status_text}"
+    await message.edit_text(text)
