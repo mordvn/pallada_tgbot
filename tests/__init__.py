@@ -79,10 +79,6 @@ class TestSibGUChatbot(unittest.TestCase):
         )
         return response
 
-#if __name__ == '__main__':
-    #unittest.main()
-
-
 from gcsa.event import Event
 from gcsa.google_calendar import GoogleCalendar
 from gcsa.recurrence import Recurrence, DAILY, SU, SA, WEEKLY
@@ -97,48 +93,107 @@ from gcsa.acl import AccessControlRule, ACLRole, ACLScopeType
 from datetime import datetime
 from beautiful_date import Jan, Apr
 
-gc = GoogleCalendar(credentials_path='.credentials/credentials.json', authentication_flow_port=8000)
+class TestGoogleCalendarIntegration(unittest.TestCase):
+    def setUp(self):
+        """Set up test fixtures before each test method"""
+        self.gc = GoogleCalendar(
+            credentials_path='.credentials/credentials.json',
+            authentication_flow_port=8000
+        )
+        self.group_name = 'БПИ23-01'
 
-settings = gc.get_settings()
-settings.format24_hour_time = True
-settings.locale = 'ru'
-settings.timezone = 'Asia/Krasnoyarsk'
+        # Configure calendar settings
+        settings = self.gc.get_settings()
+        settings.format24_hour_time = True
+        settings.locale = 'ru'
+        settings.timezone = 'Asia/Krasnoyarsk'
 
-group_calendar = None
-for calendar in gc.get_calendar_list():
-    if calendar.summary == 'БПИ23-01':
-        group_calendar = calendar
-if group_calendar is None:
-    calendar = Calendar(
-        'БПИ23-01',
-        description='Расписание БПИ23-01'
-    )
-    group_calendar = gc.add_calendar(calendar)
+    def test_calendar_creation(self):
+        """Test creating a new calendar for a group"""
+        # Find or create calendar
+        group_calendar = None
+        for calendar in self.gc.get_calendar_list():
+            if calendar.summary == self.group_name:
+                group_calendar = calendar
+                break
 
-for event in gc.get_events(calendar_id=group_calendar.id):
-    gc.delete_event(event, calendar_id=group_calendar.id)
+        if group_calendar is None:
+            calendar = Calendar(
+                self.group_name,
+                description=f'Расписание {self.group_name}'
+            )
+            group_calendar = self.gc.add_calendar(calendar)
 
-r = Recurrence.rule(freq=WEEKLY, interval=2)
-start = datetime(year=2025, month=2, day=5, hour=6, minute=30)
+        self.assertIsNotNone(group_calendar)
+        self.assertEqual(group_calendar.summary, self.group_name)
 
-end = start + 2 * hours
-event = Event('Meeting',
-              start=start,
-              end=end,
-              description='Test event',
-              location='Test location',
-              recurrence=r)
+    def test_event_management(self):
+        """Test adding and deleting events"""
+        # Get the test calendar
+        group_calendar = None
+        for calendar in self.gc.get_calendar_list():
+            if calendar.summary == self.group_name:
+                group_calendar = calendar
+                break
 
-event = gc.add_event(event, calendar_id=group_calendar.id)
+        self.assertIsNotNone(group_calendar)
 
+        # Clear existing events
+        for event in self.gc.get_events(calendar_id=group_calendar.id):
+            self.gc.delete_event(event, calendar_id=group_calendar.id)
 
-rule = AccessControlRule(
-    role=ACLRole.READER,
-    scope_type=ACLScopeType.DEFAULT
-)
-rule = gc.add_acl_rule(rule, calendar_id=group_calendar.id)
+        # Create test event
+        r = Recurrence.rule(freq=WEEKLY, interval=2)
+        start = datetime(year=2025, month=2, day=5, hour=6, minute=30)
+        end = start + 2 * hours
 
+        test_event = Event(
+            'Test Meeting',
+            start=start,
+            end=end,
+            description='Test event',
+            location='Test location',
+            recurrence=r
+        )
 
-print("")
-print(f"https://calendar.google.com/calendar/u/0/r?cid={group_calendar.id}")
-print("")
+        # Add event
+        added_event = self.gc.add_event(test_event, calendar_id=group_calendar.id)
+        self.assertIsNotNone(added_event)
+        self.assertEqual(added_event.summary, 'Test Meeting')
+
+    def test_calendar_permissions(self):
+        """Test setting calendar permissions"""
+        # Get the test calendar
+        group_calendar = None
+        for calendar in self.gc.get_calendar_list():
+            if calendar.summary == self.group_name:
+                group_calendar = calendar
+                break
+
+        self.assertIsNotNone(group_calendar)
+
+        # Set public read access
+        rule = AccessControlRule(
+            role=ACLRole.READER,
+            scope_type=ACLScopeType.DEFAULT
+        )
+        added_rule = self.gc.add_acl_rule(rule, calendar_id=group_calendar.id)
+
+        self.assertIsNotNone(added_rule)
+        self.assertEqual(added_rule.role, ACLRole.READER)
+
+    def test_calendar_url(self):
+        """Test getting calendar URL"""
+        # Get the test calendar
+        group_calendar = None
+        for calendar in self.gc.get_calendar_list():
+            if calendar.summary == self.group_name:
+                group_calendar = calendar
+                break
+
+        self.assertIsNotNone(group_calendar)
+        calendar_url = f"https://calendar.google.com/calendar/u/0/r?cid={group_calendar.id}"
+        self.assertTrue(calendar_url.startswith('https://calendar.google.com'))
+
+#if __name__ == '__main__':
+    #unittest.main()
