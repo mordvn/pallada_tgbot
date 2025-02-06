@@ -1013,9 +1013,9 @@ async def _create_google_calendar(calendar_name, schedule, schedule_type, progre
                     hour_start, minute_start = map(int, time_start.strip().split(':'))
                     hour_end, minute_end = map(int, time_end.strip().split(':'))
 
-                    # Set event times
-                    event_start = first_date.replace(hour=hour_start, minute=minute_start)
-                    event_end = first_date.replace(hour=hour_end, minute=minute_end)
+                    # Set event times and adjust by -4 hours
+                    event_start = first_date.replace(hour=hour_start, minute=minute_start) - timedelta(hours=4)
+                    event_end = first_date.replace(hour=hour_end, minute=minute_end) - timedelta(hours=4)
 
                     # Create event description
                     description = f"Тип: {lesson.type if lesson.type else 'Не указан'}\n"
@@ -1035,14 +1035,8 @@ async def _create_google_calendar(calendar_name, schedule, schedule_type, progre
                     # Create and add event
                     event = Event(
                         lesson.name.capitalize(),
-                        start={
-                            'dateTime': event_start,
-                            'timeZone': 'Asia/Krasnoyarsk',  
-                        },
-                        end={
-                            'dateTime': event_end,
-                            'timeZone': 'Asia/Krasnoyarsk',  
-                        }
+                        start=event_start,
+                        end=event_end,
                         description=description,
                         location=lesson.place.split(' / ')[1],
                         recurrence=recurrence
