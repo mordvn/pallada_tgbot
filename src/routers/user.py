@@ -6,8 +6,6 @@ from aiogram import Router, F
 from aiogram.types import (
     CallbackQuery,
     Message,
-    LabeledPrice,
-    PreCheckoutQuery,
 )
 from aiogram.filters import CommandStart, Command, CommandObject
 from aiogram.utils.chat_action import ChatActionSender
@@ -100,13 +98,10 @@ request_template = """
 
 MAPS_SEARCH_TEMPLATE = "https://2gis.ru/krasnoyarsk/search/{query}"
 
-# Add this near other constants at the top
 GOOGLE_CALENDAR_CREDS_PATH = '.credentials/credentials.json'
 
-# Add near other global variables
 calendar_locks = defaultdict(lambda: None)  # Global dictionary to track calendar creation locks
 
-# Add these constants at the top with other constants
 PROGRESS_EMOJIS = ['🎓', '📚', '✏️', '📝', '📖', '🎯', '💡', '⭐️', '📊', '🔍', '📌', '📎', '🎨', '🎬', '🎮', '🎲']
 PROGRESS_BAR_LENGTH = 10
 
@@ -1073,3 +1068,4 @@ async def _update_progress(message, progress, status_text):
 
     text = f"[{bar}]\n{status_text}"
     await message.edit_text(text)
+
