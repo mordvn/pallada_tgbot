@@ -1022,8 +1022,14 @@ async def _create_google_calendar(calendar_name, schedule, schedule_type):
 
                     event = Event(
                         lesson.name.capitalize(),
-                        start=event_start,
-                        end=event_end,
+                        start={
+                            'dateTime': event_start,
+                            'timeZone': 'Asia/Krasnoyarsk',  
+                        },
+                        end={
+                            'dateTime': event_end,
+                            'timeZone': 'Asia/Krasnoyarsk',  
+                        }
                         description=description,
                         location=lesson.place.split(' / ')[1],
                         recurrence=recurrence
