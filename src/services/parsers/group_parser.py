@@ -118,7 +118,7 @@ async def _parse_schedule(html_content: str) -> Schedule:
                     else:
                         place = 'N/A'
 
-                    subgroup_element = discipline_div.find('li', class_='bold num_pdgrp')
+                    subgroup_element = discipline_div.find('li', string=lambda x: x and 'подгруппа' in str(x))
                     subgroup = subgroup_element.text.strip() if subgroup_element else None
                     lesson_type_element = discipline_div.find('li')
                     lesson_type = lesson_type_element.text.strip().split('(')[1].replace(')', '') if lesson_type_element and '(' in lesson_type_element.text else None
@@ -168,7 +168,7 @@ async def _parse_schedule(html_content: str) -> Schedule:
                 else:
                     place = 'N/A'
 
-                subgroup_element = discipline_div.find('li', class_='bold num_pdgrp')
+                subgroup_element = discipline_div.find('li', string=lambda x: x and 'подгруппа' in str(x))
                 subgroup = subgroup_element.text.strip() if subgroup_element else None
                 lesson = Lesson(time=time, name=name, professor=professor, place=place, subgroup=subgroup)
                 day_schedule.lessons.append(lesson)
@@ -237,7 +237,7 @@ def _parse_schedule_sync(html_content: str) -> Schedule:
                     else:
                         place = 'N/A'
 
-                    subgroup_element = discipline_div.find('li', class_='bold num_pdgrp')
+                    subgroup_element = discipline_div.find('li', string=lambda x: x and 'подгруппа' in str(x))
                     subgroup = subgroup_element.text.strip() if subgroup_element else None
 
                     lesson = Lesson(time=time, name=name, professor=professor, place=place, subgroup=subgroup)
@@ -285,7 +285,7 @@ def _parse_schedule_sync(html_content: str) -> Schedule:
                 else:
                     place = 'N/A'
 
-                subgroup_element = discipline_div.find('li', class_='bold num_pdgrp')
+                subgroup_element = discipline_div.find('li', string=lambda x: x and 'подгруппа' in str(x))
                 subgroup = subgroup_element.text.strip() if subgroup_element else None
                 lesson = Lesson(time=time, name=name, professor=professor, place=place, subgroup=subgroup)
                 day_schedule.lessons.append(lesson)
