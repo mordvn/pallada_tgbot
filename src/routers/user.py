@@ -105,6 +105,19 @@ calendar_locks = defaultdict(lambda: None)  # Global dictionary to track calenda
 PROGRESS_EMOJIS = ['🎓', '📚', '✏️', '📝', '📖', '🎯', '💡', '⭐️', '📊', '🔍', '📌', '📎', '🎨', '🎬', '🎮', '🎲']
 PROGRESS_BAR_LENGTH = 10
 
+def _format_place(place: str) -> str:
+    """Format place string from 'корп. "Н" каб. "205"' to 'Н-205'"""
+    try:
+        # Extract values in quotes using string operations
+        parts = place.split('"')
+        if len(parts) >= 4:  # Ensure we have both building and room
+            building = parts[1].strip()
+            room = parts[3].strip()
+            return f"{building}-{room}"
+        return place  # Return original if can't parse
+    except Exception:
+        return place  # Return original if any error occurs
+
 async def _render_schedule(message: Message, user_id: int, state: FSMContext, notifyer: NotificationManager, update: bool = False) -> None:
     """
     Unified render function for both group and professor schedules.
@@ -194,7 +207,7 @@ async def _render_group_schedule(message: Message, user_id: int, state: FSMConte
             lesson_text = [
                 f"{lesson.name.capitalize()}",
                 f"<b>{TIME_TO_EMOJI.get(lesson.time.split('-')[0].strip(), '')} {lesson.time}</b>{lesson_type_text}{lesson_subgroup_text}",
-                f"{lesson.place.split(' / ')[1]} <a href='{MAPS_SEARCH_TEMPLATE.format(query=lesson.place.split(' / ')[0])}'>📍</a>",
+                f"{_format_place(lesson.place.split(' / ')[1])} <a href='{MAPS_SEARCH_TEMPLATE.format(query=lesson.place.split(' / ')[0])}'>📍</a>",
                 f"<a href='{await create_start_link(bot = message.bot, payload=lesson.professor, encode=True)}'>{lesson.professor}</a>",
             ]
             responses.append("\n".join(lesson_text) + "\n")
@@ -222,7 +235,7 @@ async def _render_group_schedule(message: Message, user_id: int, state: FSMConte
                 lesson_text = [
                     f"{lesson.name.capitalize()}",
                     f"<b>{lesson.time}</b>{lesson_type_text}{lesson_subgroup_text}",
-                    f"{lesson.place.split(' / ')[1]} <a href='{MAPS_SEARCH_TEMPLATE.format(query=lesson.place.split(' / ')[0])}'>📍</a>",
+                    f"{_format_place(lesson.place.split(' / ')[1])} <a href='{MAPS_SEARCH_TEMPLATE.format(query=lesson.place.split(' / ')[0])}'>📍</a>",
                     f"<a href='{await create_start_link(bot = message.bot, payload=lesson.professor, encode=True)}'>{lesson.professor}</a>",
                 ]
                 responses.append("\n".join(lesson_text) + "\n")
@@ -314,7 +327,7 @@ async def _render_professor_schedule(message: Message, user_id: int, state: FSMC
             responses.append(
                 f"{lesson.name.capitalize()}\n"
                 f"<b>{TIME_TO_EMOJI.get(lesson.time.split('-')[0].strip(), '')} {lesson.time}</b>{lesson_type_text}{lesson_subgroup_text}\n"
-                f"{lesson.place.split(' / ')[1]} <a href='{MAPS_SEARCH_TEMPLATE.format(query=lesson.place.split(' / ')[0])}'>📍</a>\n"
+                f"{_format_place(lesson.place.split(' / ')[1])} <a href='{MAPS_SEARCH_TEMPLATE.format(query=lesson.place.split(' / ')[0])}'>📍</a>\n"
                 f"{', '.join(group_links)}\n"
             )
 
@@ -348,7 +361,7 @@ async def _render_professor_schedule(message: Message, user_id: int, state: FSMC
                 responses.append(
                     f"{lesson.name.capitalize()}\n"
                     f"<b>{lesson.time}</b>{lesson_type_text}{lesson_subgroup_text}\n"
-                    f"{lesson.place.split(' / ')[1]} <a href='{MAPS_SEARCH_TEMPLATE.format(query=lesson.place.split(' / ')[0])}'>📍</a>\n"
+                    f"{_format_place(lesson.place.split(' / ')[1])} <a href='{MAPS_SEARCH_TEMPLATE.format(query=lesson.place.split(' / ')[0])}'>📍</a>\n"
                     f"{', '.join(group_links)}\n"
                 )
 
@@ -383,7 +396,7 @@ async def _render_professor_schedule(message: Message, user_id: int, state: FSMC
                 responses.append(
                     f"{lesson.name.capitalize()}\n"
                     f"<b>{lesson.time}</b>{lesson_type_text}{lesson_subgroup_text}\n"
-                    f"{lesson.place.split(' / ')[1]} <a href='{MAPS_SEARCH_TEMPLATE.format(query=lesson.place.split(' / ')[0])}'>📍</a>\n"
+                    f"{_format_place(lesson.place.split(' / ')[1])} <a href='{MAPS_SEARCH_TEMPLATE.format(query=lesson.place.split(' / ')[0])}'>📍</a>\n"
                     f"{', '.join(group_links)}\n"
                 )
     else:
@@ -1017,13 +1030,19 @@ async def _create_google_calendar(calendar_name, schedule, schedule_type, progre
                     event_start = first_date.replace(hour=hour_start, minute=minute_start) - timedelta(hours=4)
                     event_end = first_date.replace(hour=hour_end, minute=minute_end) - timedelta(hours=4)
 
-                    # Create event description
-                    description = f"Тип: {lesson.type if lesson.type else 'Не указан'}\n"
+                    # Create location string with combined info
+                    location_parts = []
+                    location_parts.append(_format_place(lesson.place.split(' / ')[1]))
+                    if lesson.type:
+                        location_parts.append(lesson.type)
+
                     if schedule_type == 'group':
-                        description += f"Преподаватель: {lesson.professor}\n"
+                        location_parts.append(lesson.professor)
                     else:
                         groups = lesson.groups if isinstance(lesson.groups, list) else [lesson.groups]
-                        description += f"Группы: {', '.join(groups)}\n"
+                        location_parts.append(', '.join(groups))
+
+                    location = ' | '.join(location_parts)
 
                     # Create recurrence rule (every 2 weeks)
                     recurrence = Recurrence.rule(
@@ -1037,8 +1056,7 @@ async def _create_google_calendar(calendar_name, schedule, schedule_type, progre
                         f"{lesson.name.capitalize()}{f' ({lesson.subgroup})' if lesson.subgroup else ''}",
                         start=event_start,
                         end=event_end,
-                        description=description,
-                        location=lesson.place.split(' / ')[1],
+                        location=location,
                         recurrence=recurrence
                     )
                     await run_in_executor(gc.add_event, event, calendar_id=target_calendar.id)
