@@ -1034,7 +1034,7 @@ async def _create_google_calendar(calendar_name, schedule, schedule_type, progre
 
                     # Create and add event
                     event = Event(
-                        lesson.name.capitalize(),
+                        f"{lesson.name.capitalize()}{f' ({lesson.subgroup})' if lesson.subgroup else ''}",
                         start=event_start,
                         end=event_end,
                         description=description,
