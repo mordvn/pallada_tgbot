@@ -409,8 +409,12 @@ def _compare_schedules(old_schedule: Schedule, new_schedule: Schedule) -> List[C
 async def get_schedule_from_url(url: str, directory: Optional[str] = None) -> Schedule:
     """
     Fetches schedule from URL or loads from cache if available.
-    If changes are detected between cache and new data, returns schedule with CHANGED source
-    and list of changes.
+    If network is available:
+        - Fetches new data and compares with cache
+        - Returns new schedule with changes if detected
+    If network is unavailable:
+        - Returns cached schedule if exists
+        - Raises exception only if no cache exists
     """
     cached_schedule = None
 
@@ -421,12 +425,12 @@ async def get_schedule_from_url(url: str, directory: Optional[str] = None) -> Sc
 
         if cache_file.exists():
             cached_schedule = _load_schedule_from_cache(cache_file)
+            cached_schedule.source = SourceType.PROXY
 
-
-    # Fetch new data
+    # Try to fetch new data
     conn = aiohttp.TCPConnector(ssl=False)
-    async with aiohttp.ClientSession(connector=conn) as session:
-        try:
+    try:
+        async with aiohttp.ClientSession(connector=conn) as session:
             async with session.get(url) as response:
                 response.raise_for_status()
                 html_content = await response.text()
@@ -440,7 +444,7 @@ async def get_schedule_from_url(url: str, directory: Optional[str] = None) -> Sc
                         new_schedule.source = SourceType.CHANGED
                         new_schedule.changes = changes
                     else:
-                        new_schedule.source = SourceType.PROXY
+                        new_schedule.source = SourceType.RAW
 
                 # Save to cache, overwriting old cache
                 if directory:
@@ -448,8 +452,11 @@ async def get_schedule_from_url(url: str, directory: Optional[str] = None) -> Sc
 
                 return new_schedule
 
-        except aiohttp.ClientError as e:
-            raise Exception(f"Failed to fetch URL: {e}")
+    except (aiohttp.ClientError, aiohttp.ClientConnectionError) as e:
+        logger.warning(f"Failed to fetch URL: {e}. Trying to use cache.")
+        if cached_schedule:
+            return cached_schedule
+        raise Exception("No internet connection and no cached schedule available")
 
 def get_schedule_from_url_sync(url: str, directory: Optional[str] = None) -> Schedule:
     """

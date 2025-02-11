@@ -159,6 +159,8 @@ async def _render_group_schedule(message: Message, user_id: int, state: FSMConte
 
     responses = []
     responses.append(f"<a href=\'{await create_start_link(bot = message.bot, payload=schedule.group_name, encode=True)}\'>{schedule.group_name}</a> {schedule.semester}")
+    if schedule.source == group_parser.SourceType.PROXY:
+        responses.append(f"🔄 Расписание загружено из кэша")
     responses.append(f"")
 
     if current_tab == 'basic' and schedule.weeks:
@@ -273,6 +275,9 @@ async def _render_professor_schedule(message: Message, user_id: int, state: FSMC
 
     responses = []
     responses.append(f"<a href=\'{await create_start_link(bot = message.bot, payload=schedule.person_name, encode=True)}\'>{schedule.person_name}</a> - {schedule.academic_year}")
+    if schedule.source == professor_parser.SourceType.PROXY:
+        responses.append(f"🔄 Расписание загружено из кэша")
+
     responses.append(f"")
 
     if current_tab == 'basic' and schedule.weeks:
