@@ -29,4 +29,4 @@ COPY . .
 
 # Run your application using uv.
 # (Replace 'my_app' with the command provided by your project.)
-CMD ["uv", "run", "python3", "src/main.py"]
+CMD ["uv", "run", "python3", "src/__init__.py"]
