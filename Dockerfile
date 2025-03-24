@@ -1,28 +1,32 @@
-FROM python:3.10-slim
+# Use the official Python 3.13 slim-bookworm image as the base
+FROM python:3.13-slim-bookworm
 
-# Set working directory
+# Install prerequisites for the uv installer
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+# Download and run the uv installer to install uv (and uvx)
+ADD https://astral.sh/uv/install.sh /uv-installer.sh
+RUN sh /uv-installer.sh && rm /uv-installer.sh
+
+# Ensure the installed uv binary (and tools) are on the PATH
+ENV PATH="/root/.local/bin:$PATH"
+
+# Set the working directory for your project
 WORKDIR /app
 
-# Install Poetry
-RUN pip install poetry==1.7.1
+# Copy over your dependency files first (to leverage Docker caching)
+# If you use a lockfile (e.g. uv.lock), include it here as well.
+COPY pyproject.toml uv.lock* ./
 
-# Copy Poetry configuration files
-COPY pyproject.toml poetry.lock* ./
+# Install your project’s dependencies (this will read the pyproject.toml)
+RUN uv sync --frozen
 
-# Configure Poetry to not create a virtual environment
-RUN poetry config virtualenvs.create false
-
-# Install dependencies
-RUN poetry install --no-dev --no-interaction
-
-# Copy project files
+# Now copy the rest of your project files
 COPY . .
 
-# Create cache directory
-RUN mkdir -p cache
-
-# Set environment variable for Python to run in unbuffered mode
-ENV PYTHONUNBUFFERED=1
-
-# Run the bot
-CMD ["python", "src/__init__.py"] 
+# Run your application using uv.
+# (Replace 'my_app' with the command provided by your project.)
+CMD ["uv", "run", "python3", "src/main.py"]
