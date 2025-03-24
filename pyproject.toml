@@ -1,10 +1,9 @@
 [project]
 name = "pallada-tgbot"
 version = "0.1.0"
-description = ""
-authors = [{ name = "81d", email = "<artyom.mordovan@yandex.ru>" }]
+description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.13"
 dependencies = [
     "aiogram (>=3.17.0,<4.0.0)",
     "python-dotenv (>=1.0.1,<2.0.0)",
@@ -14,8 +13,3 @@ dependencies = [
     "g4f (>=0.4.5.0,<0.5.0.0)",
     "gcsa (>=2.5.1,<3.0.0)",
 ]
-
-
-[build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
