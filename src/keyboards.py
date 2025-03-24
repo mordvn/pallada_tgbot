@@ -45,8 +45,8 @@ def schedule_pagination_keyboard(current_tab: str, current_week_index: int, curr
         builder.button(text='>>', callback_data='next_day')\
 
     builder.button(text='🔔' if not subscribed else '🔕', callback_data='notify_me')
-    builder.button(text='📅', callback_data='get_calendar')
-    builder.button(text='📊', callback_data='ai_summary')
+    #builder.button(text='📅', callback_data='get_calendar')
+    #builder.button(text='📊', callback_data='ai_summary')
     builder.button(text='🔁', copy_text=CopyTextButton(text=link))
 
     return builder.adjust(*pattern).as_markup()
