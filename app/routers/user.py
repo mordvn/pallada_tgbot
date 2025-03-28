@@ -250,6 +250,7 @@ async def _render_group_schedule(message: Message, user_id: int, state: FSMConte
     link = await create_start_link(message.bot, name, encode=True)
 
     if not update:
+        await message.answer('⚠️ Внимание! Вышла новая версия бота! @sibsau_timetable_bot')
         await message.answer(
             "\n".join(responses),
             reply_markup=schedule_pagination_keyboard(current_tab, current_week_index, current_day_index, num_max_days, 'group', subscribed, link),
@@ -411,6 +412,7 @@ async def _render_professor_schedule(message: Message, user_id: int, state: FSMC
     name = f"{data['schedule'].group_name if data['type'] == 'group' else data['schedule'].person_name}"
     link = await create_start_link(message.bot, name, encode=True)
     if not update:
+        await message.answer('⚠️ Внимание! Вышла новая версия бота! @sibsau_timetable_bot')
         await message.answer(
             "\n".join(responses),
             reply_markup=schedule_pagination_keyboard(current_tab, current_week_index, current_day_index, num_max_days, 'professor', subscribed, link),
@@ -896,6 +898,7 @@ async def process_cmd_start(message: Message, command: CommandObject, search_res
         else:
             await message.answer('Неверная ссылка: ссылка пустая')
     else:
+        await message.answer('⚠️ Внимание! Вышла новая версия бота! @sibsau_timetable_bot')
         await message.answer('Напиши название группы или фамилию преподавателя, как ты делал(а) это на сайте')
 
 @user_router.message(Command('help'))
@@ -937,6 +940,7 @@ async def process_cmd_help(message: Message) -> None:
         '• Ссылку можно сохранить, чтобы кликом открывать расписание\n\n'
         'Бот стремится автоматически показать текущий или ближайший следующий день при открытии расписания.\n\n'
     )
+    await message.answer('⚠️ Внимание! Вышла новая версия бота! @sibsau_timetable_bot')
     await message.answer(help_text, reply_markup=help_keyboard(), parse_mode=ParseMode.HTML, link_preview_options=LinkPreviewOptions(is_disabled=True))
 
 @user_router.message(F.text)
