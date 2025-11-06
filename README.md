@@ -91,13 +91,6 @@ Contributions are welcome! Here's how you can help:
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## Acknowledgments 🙏
-
-- Thanks to SibSAU for providing schedule data
-- All contributors who have helped improve this bot
-- The Python Telegram Bot community for their excellent documentation and support
-- GPT-4 for powering the AI analysis features
-
 ## Support the Project ❤️
 
 If you find this bot useful, please consider:
