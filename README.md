@@ -14,7 +14,7 @@ A Telegram bot for accessing and tracking class schedules at Siberian State Univ
   <img src="images/4.jpg" width="400" alt="Google Calendar Export"/>
 </div>
 
-## Features ✨
+## Features
 
 - Group and professor schedule search  
 - Day/week navigation  
@@ -69,7 +69,7 @@ poetry run python src/__init__.py
    - Professor names and subjects
    - Automatic updates when schedule changes
 
-## Contributing�
+## Contributing
 
 Contributions are welcome! Here's how you can help:
 
