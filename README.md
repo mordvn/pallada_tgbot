@@ -16,24 +16,12 @@ A Telegram bot for accessing and tracking class schedules at Siberian State Univ
 
 ## Features ✨
 
-- 🔍 Quick search for both student groups and professors
-- 📅 View schedules by week and day
-- 🔄 Real-time schedule updates
-- 🔔 Notifications for schedule changes
-- 🤖 AI-powered schedule analysis
-- 📱 User-friendly interface
-- 🔗 Quick navigation between related schedules
-- 📊 Support for regular classes, exam sessions, and consultations
-- 📲 Export schedule to Google Calendar
-
-## AI Features 🧠
-
-The bot now includes AI capabilities:
-- 📈 Smart schedule analysis
-- 💡 Intelligent insights about your schedule
-- 🎯 Key schedule patterns identification
-- ⚡️ Quick schedule summaries
-- 🔍 Schedule optimization suggestions
+- Group and professor schedule search  
+- Day/week navigation  
+- Change notifications  
+- Support for regular classes, exams, and consultations  
+- Google Calendar export  
+- Basic AI-powered schedule analysis 
 
 ## Installation & Development Setup 🛠️
 
@@ -63,25 +51,25 @@ TG_BOT_TOKEN=your_bot_token
 poetry run python src/__init__.py
 ```
 
-## Usage 📱
+## Usage
 
-1. Start the bot: Search for `@pallada_sibsau_bot` on Telegram or click [here](https://t.me/pallada_sibsau_bot)
+1. Start the bot
 2. Enter a group name or professor's surname
 3. Navigate through the schedule using the inline keyboard
 4. Enable notifications to stay updated about schedule changes
 5. Use the AI analysis button (📊) to get smart insights about your schedule
 
-### Google Calendar Export 📲
+### Google Calendar Export
 
 1. Open your schedule in the bot
 2. Click the "Export to Calendar" button
 3. Follow the link to add events to your Google Calendar
-4. Your schedule will be synced with Google Calendar, including:
+* Your schedule will be synced with Google Calendar, including:
    - Class times and locations
    - Professor names and subjects
    - Automatic updates when schedule changes
 
-## Contributing 🤝
+## Contributing�
 
 Contributions are welcome! Here's how you can help:
 
@@ -91,13 +79,9 @@ Contributions are welcome! Here's how you can help:
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## Support the Project ❤️
+## License
 
-If you find this bot useful, please consider:
-- Starring the repository ⭐
-- Sharing it with others 🔄
-- Contributing to its development 💻
-- Supporting through donations 💖
+MIT
 
 ---
 Made with ❤️ for SibSAU students and professors
