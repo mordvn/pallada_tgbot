@@ -54,10 +54,8 @@ uv run python3 app/main.py
 ## Deployment 
 
 ```bash
-```
 docker build -t pallada_tgbot .
 docker run --env-file .env pallada_tgbot
-```
 ```
 
 ## Usage
