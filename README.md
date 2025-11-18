@@ -28,7 +28,7 @@ A Telegram bot for accessing and tracking class schedules at Siberian State Univ
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/unknown81d/pallada_tgbot.git
+git clone https://github.com/mordvn/pallada_tgbot.git
 cd pallada_tgbot
 ```
 
@@ -36,7 +36,7 @@ cd pallada_tgbot
 3. Install dependencies:
 
 ```bash
-poetry install
+uv sync
 ```
 
 4. Configure .env with your configuration:
@@ -48,7 +48,16 @@ TG_BOT_TOKEN=your_bot_token
 5. Run the bot:
 
 ```bash
-poetry run python src/__init__.py
+uv run python3 app/main.py
+```
+
+## Deployment 
+
+```bash
+```
+docker build -t pallada_tgbot .
+docker run --env-file .env pallada_tgbot
+```
 ```
 
 ## Usage
@@ -74,9 +83,9 @@ poetry run python src/__init__.py
 Contributions are welcome! Here's how you can help:
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
+2. Create your feature branch (`git checkout -b feature/myfeature`)
+3. Commit your changes (`git commit -m 'addfeature'`)
+4. Push to the branch (`git push origin feature/amazingfeature`)
 5. Open a Pull Request
 
 ## License
