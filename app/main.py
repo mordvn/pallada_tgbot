@@ -12,14 +12,13 @@ from services.search_results import fetch_database_sync
 from services.notification_processor import NotificationManager
 
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-if not (token := os.getenv('TG_BOT_TOKEN')):
+if not (token := os.getenv("TG_BOT_TOKEN")):
     raise ValueError("TG_BOT_TOKEN environment variable is not set")
 
 bot = Bot(token=token)
@@ -27,14 +26,16 @@ bot = Bot(token=token)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
+
 async def init_dispatcher() -> None:
     """
     Initialize dispatcher with required data and routers.
     """
-    dp['search_results'] = fetch_database_sync("cache/search_results.json")
-    dp['notifyer'] = NotificationManager()
+    dp["search_results"] = fetch_database_sync("cache/search_results.json")
+    dp["notifyer"] = NotificationManager()
 
     dp.include_router(user_router)
+
 
 async def start_bot() -> None:
     """
@@ -43,6 +44,7 @@ async def start_bot() -> None:
     await bot.delete_webhook(drop_pending_updates=True)
     logger.info("Starting bot polling...")
     await dp.start_polling(bot)
+
 
 async def main() -> NoReturn:
     """
@@ -56,7 +58,8 @@ async def main() -> NoReturn:
         logger.error(f"Error occurred: {e}")
         raise
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
