@@ -32,20 +32,19 @@ git clone https://github.com/mordvn/pallada_tgbot.git
 cd pallada_tgbot
 ```
 
-2. Create and activate virtual environment &
-3. Install dependencies:
+2. Install dependencies:
 
 ```bash
 uv sync
 ```
 
-4. Configure .env with your configuration:
+3. Configure .env with your configuration:
 
 ```bash
 TG_BOT_TOKEN=your_bot_token
 ```
 
-5. Run the bot:
+4. Run the bot:
 
 ```bash
 uv run python3 app/main.py
