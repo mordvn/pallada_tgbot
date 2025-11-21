@@ -301,9 +301,6 @@ async def _render_group_schedule(
 
     if not update:
         await message.answer(
-            "⚠️ Внимание! Вышла новая версия бота! @sibsau_timetable_bot"
-        )
-        await message.answer(
             "\n".join(responses),
             reply_markup=schedule_pagination_keyboard(
                 current_tab,
@@ -524,9 +521,6 @@ async def _render_professor_schedule(
     name = f"{data['schedule'].group_name if data['type'] == 'group' else data['schedule'].person_name}"
     link = await create_start_link(message.bot, name, encode=True)
     if not update:
-        await message.answer(
-            "⚠️ Внимание! Вышла новая версия бота! @sibsau_timetable_bot"
-        )
         await message.answer(
             "\n".join(responses),
             reply_markup=schedule_pagination_keyboard(
@@ -1170,9 +1164,6 @@ async def process_cmd_start(
             await message.answer("Неверная ссылка: ссылка пустая")
     else:
         await message.answer(
-            "⚠️ Внимание! Вышла новая версия бота! @sibsau_timetable_bot"
-        )
-        await message.answer(
             "Напиши название группы или фамилию преподавателя, как ты делал(а) это на сайте"
         )
 
@@ -1216,7 +1207,6 @@ async def process_cmd_help(message: Message) -> None:
         "• Ссылку можно сохранить, чтобы кликом открывать расписание\n\n"
         "Бот стремится автоматически показать текущий или ближайший следующий день при открытии расписания.\n\n"
     )
-    await message.answer("⚠️ Внимание! Вышла новая версия бота! @sibsau_timetable_bot")
     await message.answer(
         help_text,
         reply_markup=help_keyboard(),
